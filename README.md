@@ -113,7 +113,7 @@ func main() {
     // broken JSON string from LLM
     in := "```json {'employees':['John', 'Anna', ```"
 
-    RepairJSON(in)
+    jsonrepair.RepairJSON(in)
 
     // output:	{"employees":["John","Anna"]}
 }
