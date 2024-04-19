@@ -256,6 +256,28 @@ func TestRepairJSON(t *testing.T) {
 			in:   `{ "words": abcdef", "numbers": 12345", "words2": ghijkl" }`,
 			want: `{"words":"abcdef","numbers":12345,"words2":"ghijkl"}`,
 		},
+		{
+			in: `
+				{
+				  "resourceType": "Bundle",
+				  "id": "1",
+				  "type": "collection",
+				  "entry": [
+					{
+					  "resource": {
+						"resourceType": "Patient",
+						"id": "1",
+						"name": [
+						  {"use": "official", "family": "Corwin", "given": ["Keisha", "Sunny"], "prefix": ["Mrs."},
+						  {"use": "maiden", "family": "Goodwin", "given": ["Keisha", "Sunny"], "prefix": ["Mrs."]}
+						]
+					  }
+					}
+				  ]
+				}
+				`,
+			want: `{"resourceType": "Bundle", "id": "1", "type": "collection", "entry": [{"resource": {"resourceType": "Patient", "id": "1", "name": [{"use": "official", "family": "Corwin", "given": ["Keisha", "Sunny"], "prefix": ["Mrs."]}, {"use": "maiden", "family": "Goodwin", "given": ["Keisha", "Sunny"], "prefix": ["Mrs."]}]}}]}`,
+		},
 	}
 
 	caseNo := 0

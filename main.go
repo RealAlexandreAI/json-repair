@@ -35,18 +35,20 @@ func RepairJSON(in string) string {
 //	return *JSONParser
 func NewJSONParser(in string) *JSONParser {
 	return &JSONParser{
-		container: in,
-		index:     0,
-		marker:    "",
+		container:   in,
+		index:       0,
+		marker:      "",
+		markerStack: []string{},
 	}
 }
 
 // JSONParser
 // Description:
 type JSONParser struct {
-	container string
-	index     int
-	marker    string
+	container   string
+	index       int
+	marker      string
+	markerStack []string
 }
 
 // parseJSON
@@ -113,7 +115,7 @@ func (p *JSONParser) parseObject() map[string]interface{} {
 			p.index++
 		}
 
-		p.marker = "object_key"
+		p.updateMarker("object_key")
 		p.skipWhitespaces()
 
 		var key string
@@ -139,10 +141,11 @@ func (p *JSONParser) parseObject() map[string]interface{} {
 		}
 
 		p.index++
-		p.marker = "object_value"
+		p.updateMarker("")
+		p.updateMarker("object_value")
 		value := p.parseJSON()
 
-		p.marker = ""
+		p.updateMarker("")
 		if key == "" && value == "" {
 			continue
 		}
@@ -191,6 +194,10 @@ func (p *JSONParser) parseArray() []interface{} {
 			p.index++
 			c, b = p.currentByte()
 		}
+
+		if p.marker == "object_value" && c == '}' {
+			break
+		}
 	}
 
 	c, b = p.currentByte()
@@ -199,6 +206,7 @@ func (p *JSONParser) parseArray() []interface{} {
 			p.removeByte(0)
 		}
 		p.insertByte(']')
+		p.index--
 	}
 
 	p.index++
@@ -399,6 +407,26 @@ func (p *JSONParser) removeByte(count int) {
 func (p *JSONParser) insertByte(in byte) {
 	p.container = p.container[:p.index] + string(in) + p.container[p.index:]
 	p.index++
+}
+
+// updateMarker
+//
+//	Description:
+//	receiver p
+//	param in
+func (p *JSONParser) updateMarker(in string) {
+	if in != "" {
+		if p.marker != "" {
+			p.markerStack = append(p.markerStack, p.marker)
+		}
+		p.marker = in
+	} else {
+		if len(p.markerStack) > 0 {
+			p.marker = p.markerStack[len(p.markerStack)-1]
+		} else {
+			p.marker = ""
+		}
+	}
 }
 
 // contains
