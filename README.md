@@ -46,30 +46,8 @@
 </div>
 
 
-<!-- TABLE OF CONTENTS -->
-<details>
-  <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-    </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-  </ol>
-</details>
-
-
-
 <!-- ABOUT THE PROJECT -->
-## About The Project
-
-### 🔧 Repair JSON! Solution for JSON Anomalies from LLMs
+## 🔧 Repair JSON! Solution for JSON Anomalies from LLMs
 
 Welcome to the json-repair, your go-to solution for fixing those pesky JSON anomalies that can sidetrack your Large Language Model (LLM) processes. Our toolkit is designed to be the Swiss Army knife for all your JSON repair needs.
 
@@ -80,11 +58,11 @@ Welcome to the json-repair, your go-to solution for fixing those pesky JSON anom
 - 📚 Rich Test Cases: Benefit from a comprehensive suite of test cases that ensure reliability and accuracy.
 - 🤖 Auto-Detection & Repair: Intelligently identifies and corrects a wide range of JSON errors, from syntax to structural issues.
 - 📐 Customizable: Offers the flexibility to tailor the repair process to your project's specific needs.
-- ⚙️ No Anxiety About Error: json-repair always gives the string result
+- ⚙️ No Anxiety About Error: json-repair always gives the string result.
 - 🌐 Open Source: Join a vibrant community of developers contributing to the ongoing evolution of the toolkit.
 
 
-### 🔍 Supported Broken LLM JSON output
+### 🔍 Supported Broken LLM JSON Output
 
 - Single quote `"`
 - Line feed `\n`
@@ -111,16 +89,14 @@ Welcome to the json-repair, your go-to solution for fixing those pesky JSON anom
 
 
 <!-- GETTING STARTED -->
-## Getting Started
-
-🏁 Getting Started
+## 🏁 Getting Started
 To add the JSON Repair to your Go project, use the following command:
 
 ```shell
 go get github.com/RealAlexandreAI/json-repair
 ```
 
-> Any version Go is compatible even Go v1.1 .
+> Any Go version is compatible even v1.1 .
 
 <!-- USAGE EXAMPLES -->
 ## Usage
@@ -144,8 +120,8 @@ func main() {
 ```
 
 
-_For more examples, please refer to the [Test Cases](https://github.com/RealAlexandreAI/json-repair/blob/master/main_test.go)_
-
+_For more examples, please refer to the [Test Cases](https://github.com/RealAlexandreAI/json-repair/blob/master/main_test.go) Or <a href="https://goplay.tools/snippet/tKNwcBIsAMV">Online Playground</a>_
+ 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
@@ -183,7 +159,7 @@ Don't forget to give the project a star! Thanks again!
 
 ## Related Project 
 
-- [python json_repair](https://github.com/mangiucugna/json_repair) - Inspiration of json-repair
+- [python json_repair](https://github.com/mangiucugna/json_repair) - Inspiration of json-repair.
 
 
 <!-- LICENSE -->
