@@ -63,7 +63,7 @@ brews:
   - name: jsonrepair
     repository:
       owner: RealAlexandreAI
-      name: jsonrepair-homebrew-tap
+      name: tap-jsonrepair
       branch: main
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     url_template: "https://github.com/RealAlexandreAI/json-repair/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
