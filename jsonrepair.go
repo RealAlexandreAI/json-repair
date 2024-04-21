@@ -429,9 +429,9 @@ func (p *JSONParser) setMarker(in string) {
 //	@Description:
 //	@receiver p
 func (p *JSONParser) resetMarker() {
-	//if len(p.marker) > 0 {
-	//	p.marker = p.marker[:len(p.marker)-1]
-	//}
+	// if len(p.marker) > 0 {
+	// 	p.marker = p.marker[:len(p.marker)-1]
+	// }
 	p.marker = []string{}
 }
 
