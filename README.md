@@ -51,13 +51,13 @@
 
 Welcome to the json-repair, your go-to solution for fixing those pesky JSON anomalies that can sidetrack your Large Language Model (LLM) processes. Our toolkit is designed to be the Swiss Army knife for all your JSON repair needs.
 
-### 🎯 Why Choose JSON Repair? 
+### 🎯 Why Choose JSON Repair?
 
 - 🏎️ GO Compatibility: Our library ensures a seamless experience for Go developers with its excellent compatibility.
 - 🔗 Zero Dependencies: We've crafted a tool with zero external dependencies, keeping it lean and mean.
 - 📚 Rich Test Cases: Benefit from a comprehensive suite of test cases that ensure reliability and accuracy.
 - 🤖 Auto-Detection & Repair: Intelligently identifies and corrects a wide range of JSON errors, from syntax to structural issues.
-- 📐 Terminal Cli Support: The feature can also be used in the command line and can be chained with command pipes.
+- 📐 Terminal CLI Support: The feature can also be used in the command-line and can be chained with command pipes.
 - ⚙️ No Anxiety About Error: json-repair always gives the string result.
 - 🌐 Open Source: Join a vibrant community of developers contributing to the ongoing evolution of the toolkit.
 
@@ -121,10 +121,10 @@ func main() {
 
 
 _For more examples, please refer to the [Test Cases](https://github.com/RealAlexandreAI/json-repair/blob/master/main_test.go) Or <a href="https://goplay.tools/snippet/tKNwcBIsAMV">Online Playground</a>_
- 
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Terminal Cli
+## Terminal CLI
 
 
 ```bash
@@ -133,9 +133,9 @@ brew install realalexandreai/tap-jsonrepair/jsonrepair
 
 # from raw string
 jsonrepair -i "{'employees':['John', 'Anna', "
-# output: {"employees":["John", "Anna", "Peter"]} 
+# output: {"employees":["John", "Anna", "Peter"]}
 
-# from file 
+# from file
 jsonrepair -f <json-file>.json
 ```
 
@@ -146,10 +146,10 @@ _You can also download binary from Release, please refer to the [Releases](https
 ## Roadmap
 
 - [x] Convert project from Python
-- [x] Minimum Go version 
+- [x] Minimum Go version
 - [x] Cover test cases
-- [x] Terminal Cli support
-- [x] Workflow and Github Action
+- [x] Terminal CLI support
+- [x] Workflow and GitHub Action
 - [x] Add Homebrew tap
 - [ ] Support Full-width character detection
 
@@ -176,7 +176,7 @@ Don't forget to give the project a star! Thanks again!
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
-## Related Project 
+## Related Project
 
 - [python json_repair](https://github.com/mangiucugna/json_repair) - Inspiration of json-repair.
 
