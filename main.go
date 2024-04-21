@@ -57,7 +57,7 @@ type JSONParser struct {
 //	receiver p
 //	return interface{}
 func (p *JSONParser) parseJSON() interface{} {
-	c, b := p.currentByte()
+	c, b := p.getByte(0)
 	if !b {
 		return ""
 	}
@@ -105,10 +105,10 @@ func (p *JSONParser) parseObject() map[string]interface{} {
 	var c byte
 	var b bool
 
-	for c, b = p.currentByte(); b && c != '}'; {
+	for c, b = p.getByte(0); b && c != '}'; {
 		p.skipWhitespaces()
 
-		c, b = p.currentByte()
+		c, b = p.getByte(0)
 		if b && c == ':' {
 			p.removeByte(0)
 			p.insertByte(',')
@@ -119,23 +119,23 @@ func (p *JSONParser) parseObject() map[string]interface{} {
 		p.skipWhitespaces()
 
 		var key string
-		_, b = p.currentByte()
+		_, b = p.getByte(0)
 		for key = ""; key == "" && b; {
 			key = p.parseJSON().(string)
 
-			c, b = p.currentByte()
+			c, b = p.getByte(0)
 			if key == "" && c == ':' {
 				key = "empty_placeholder"
 				break
 			}
 		}
 
-		c, b = p.currentByte()
+		c, b = p.getByte(0)
 		if b && c == '}' {
 			continue
 		}
 
-		c, b = p.currentByte()
+		c, b = p.getByte(0)
 		if b && c != ':' {
 			p.insertByte(':')
 		}
@@ -151,7 +151,7 @@ func (p *JSONParser) parseObject() map[string]interface{} {
 		}
 		rst[key] = value
 
-		c, b = p.currentByte()
+		c, b = p.getByte(0)
 		if b && contains([]byte{',', '\'', '"'}, c) {
 			p.index++
 		}
@@ -159,7 +159,7 @@ func (p *JSONParser) parseObject() map[string]interface{} {
 		p.skipWhitespaces()
 	}
 
-	c, b = p.currentByte()
+	c, b = p.getByte(0)
 	if b && c != '}' {
 		p.insertByte('}')
 	}
@@ -177,7 +177,7 @@ func (p *JSONParser) parseArray() []interface{} {
 	var c byte
 	var b bool
 
-	for c, b = p.currentByte(); b && c != ']'; {
+	for c, b = p.getByte(0); b && c != ']'; {
 		value := p.parseJSON()
 
 		if value == nil {
@@ -189,10 +189,10 @@ func (p *JSONParser) parseArray() []interface{} {
 
 		rst = append(rst, value)
 
-		c, b = p.currentByte()
+		c, b = p.getByte(0)
 		for b && (unicode.IsSpace(rune(c)) || c == ',') {
 			p.index++
-			c, b = p.currentByte()
+			c, b = p.getByte(0)
 		}
 
 		if p.marker == "object_value" && c == '}' {
@@ -200,7 +200,7 @@ func (p *JSONParser) parseArray() []interface{} {
 		}
 	}
 
-	c, b = p.currentByte()
+	c, b = p.getByte(0)
 	if b && c != ']' {
 		if c == ',' {
 			p.removeByte(0)
@@ -220,7 +220,7 @@ func (p *JSONParser) parseArray() []interface{} {
 //	param quotes
 //	return interface{}
 func (p *JSONParser) parseString(quotes ...byte) interface{} {
-	fixedQuotes, doubleDelimiter := false, false
+	fixedQuotes := false
 	var lStringDelimiter, rStringDelimiter byte = '"', '"'
 
 	switch len(quotes) {
@@ -233,13 +233,12 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 	}
 
 	if p.index+1 < len(p.container) && p.container[p.index+1] == lStringDelimiter {
-		doubleDelimiter = true
 		p.index++
 	}
 
 	var c byte
 	var b bool
-	c, b = p.currentByte()
+	c, b = p.getByte(0)
 
 	if b && c != lStringDelimiter {
 		p.insertByte(lStringDelimiter)
@@ -249,9 +248,7 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 	}
 
 	start := p.index
-	c, b = p.currentByte()
-
-	fixBrokenMarkdownLink := false
+	c, b = p.getByte(0)
 
 	for b && c != rStringDelimiter {
 		if fixedQuotes {
@@ -263,30 +260,42 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 		}
 
 		p.index++
-		c, b = p.currentByte()
+		c, b = p.getByte(0)
 
 		if p.index-1 >= 0 && p.container[p.index-1] == '\\' {
 			if contains([]byte{rStringDelimiter, 't', 'n', 'r', 'b', '\\'}, c) {
 				p.index++
-				c, b = p.currentByte()
+				c, b = p.getByte(0)
 			} else {
 				p.removeByte(-1)
 				p.index--
 			}
 		}
 
-		if c == rStringDelimiter && p.index+1 < len(p.container) && p.container[p.index+1] != ',' &&
-			(fixBrokenMarkdownLink || (p.index-2 >= 0 && p.container[p.index-2] == ']') && (p.index-1 >= 0 && p.container[p.index-1] == '(')) {
-			fixBrokenMarkdownLink = !fixBrokenMarkdownLink
-			p.index++
-			c, b = p.currentByte()
-		}
+		if c == rStringDelimiter &&
+			p.index+1 < len(p.container) && !contains([]byte{',', ':', ']', '}'}, p.container[p.index+1]) {
 
+			if p.container[p.index+1] == rStringDelimiter {
+				p.removeByte(0)
+			} else {
+				i := 2
+				nextByte, nextB := p.getByte(i)
+				for nextB && nextByte != rStringDelimiter {
+					i++
+					nextByte, nextB = p.getByte(i)
+				}
+
+				if nextB {
+					p.index++
+					c, b = p.getByte(0)
+				}
+			}
+		}
 	}
 
 	if b && fixedQuotes && p.marker == "object_key" && unicode.IsSpace(rune(c)) {
 		p.skipWhitespaces()
-		c, b = p.currentByte()
+		c, b = p.getByte(0)
 		if !b || !contains([]byte{':', ','}, c) {
 			return ""
 		}
@@ -298,12 +307,9 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 		p.insertByte(rStringDelimiter)
 	} else {
 		p.index++
-		if doubleDelimiter && p.container[p.index] == rStringDelimiter {
-			p.index++
-		}
 	}
 
-	return p.container[start:end]
+	return strings.TrimRightFunc(p.container[start:end], unicode.IsSpace)
 }
 
 // parseNumber
@@ -318,10 +324,10 @@ func (p *JSONParser) parseNumber() interface{} {
 	var c byte
 	var b bool
 
-	for c, b = p.currentByte(); b && contains(numberChars, c); {
+	for c, b = p.getByte(0); b && contains(numberChars, c); {
 		rst = append(rst, c)
 		p.index++
-		c, b = p.currentByte()
+		c, b = p.getByte(0)
 	}
 
 	if len(rst) > 0 {
@@ -368,11 +374,11 @@ func (p *JSONParser) parseBooleanOrNull() interface{} {
 func (p *JSONParser) skipWhitespaces() {
 	var c byte
 	var b bool
-	c, b = p.currentByte()
+	c, b = p.getByte(0)
 
 	for b && unicode.IsSpace(rune(c)) {
 		p.index++
-		c, b = p.currentByte()
+		c, b = p.getByte(0)
 	}
 }
 
@@ -382,12 +388,12 @@ func (p *JSONParser) skipWhitespaces() {
 //	receiver p
 //	return byte
 //	return bool
-func (p *JSONParser) currentByte() (byte, bool) {
-	if p.index >= len(p.container) {
+func (p *JSONParser) getByte(count int) (byte, bool) {
+	if p.index+count < 0 || p.index+count >= len(p.container) {
 		return ' ', false
 	}
 
-	return p.container[p.index], true
+	return p.container[p.index+count], true
 }
 
 // removeByte

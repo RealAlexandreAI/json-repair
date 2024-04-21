@@ -234,7 +234,7 @@ func TestRepairJSON(t *testing.T) {
 		},
 		{
 			in:   "{\"key\\_1\n\": \"value\"}",
-			want: `{"key_1\n":"value"}`,
+			want: `{"key_1":"value"}`,
 		},
 		{
 			in:   "{\"key\t\\_\": \"value\"}",
@@ -277,6 +277,10 @@ func TestRepairJSON(t *testing.T) {
 				}
 				`,
 			want: `{"resourceType": "Bundle", "id": "1", "type": "collection", "entry": [{"resource": {"resourceType": "Patient", "id": "1", "name": [{"use": "official", "family": "Corwin", "given": ["Keisha", "Sunny"], "prefix": ["Mrs."]}, {"use": "maiden", "family": "Goodwin", "given": ["Keisha", "Sunny"], "prefix": ["Mrs."]}]}}]}`,
+		},
+		{
+			in:   `{\n"html": "<h3 id="aaa">Waarom meer dan 200 Technical Experts - "Passie voor techniek"?</h3>"}`,
+			want: `{"html":"<h3 id=\"aaa\">Waarom meer dan 200 Technical Experts - \"Passie voor techniek\"?</h3>"}`,
 		},
 	}
 
