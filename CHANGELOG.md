@@ -1,19 +1,31 @@
 # Changelog
 
+## v0.0.3
+
+### New Features
+- Introduced `jsonrepair` as a command-line interface for easier use.
+
+### Improvements
+- Initialized `goreleaser` to streamline the release process.
+
+### Bug Fixes
+- Resolved an issue reported in upstream repository (#26).
+
 ## v0.0.2
 
-### Added or Changed
+### New Features
+- Implemented `markerRecord` to enhance the tracking of nested data structures.
 
-- add markerRecord to record nested structure
-- fix upstream #24 
+### Bug Fixes
+- Addressed a bug identified in the upstream repository (#24).
 
-### Removed
+### Deprecations
+- (This section is left empty as there are no items to be removed in this release.)
 
 ## v0.0.1
 
-### Added or Changed
+### Initial Release
+- Launched the initial version of `json-repair`, a tool designed to fix malformed JSON files.
 
-- Initial json-repair 
-
-### Removed
-
+### Deprecations
+- (This section is left empty as there are no items to be removed in this initial release.)
