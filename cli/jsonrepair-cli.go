@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/RealAlexandreAI/json-repair"
 	"os"
+
+	"github.com/RealAlexandreAI/json-repair"
 )
 
-const AppVersion = "0.0.3"
+const AppVersion = "0.0.4"
 
 var (
 	versionFlag bool
@@ -41,7 +42,6 @@ func printDefaults() {
 //
 //	@Description:
 func main() {
-
 	flag.Parse()
 
 	if versionFlag {
@@ -70,5 +70,4 @@ func main() {
 		}
 		fmt.Println(jsonrepair.RepairJSON(string(fi)))
 	}
-
 }

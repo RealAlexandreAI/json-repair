@@ -13,7 +13,6 @@ import (
 //	@Description:
 //	@param t
 func Test_Example(t *testing.T) {
-
 	in := "```json {'employees':['John', 'Anna', ```"
 
 	rst := RepairJSON(in)

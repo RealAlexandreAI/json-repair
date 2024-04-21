@@ -1,10 +1,14 @@
 # Changelog
 
+## v0.0.4
+
+### New Features
+- Add Homebrew tap.
+
 ## v0.0.3
 
 ### New Features
 - Introduced `jsonrepair` as a command-line interface for easier use.
-- Add Homebrew tap.
 
 ### Improvements
 - Initialized `goreleaser` to streamline the release process.

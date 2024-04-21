@@ -129,7 +129,7 @@ _For more examples, please refer to the [Test Cases](https://github.com/RealAlex
 
 ```bash
 
-brew install RealAlexandreAI/tap-jsonrepair/jsonrepair
+brew install realalexandreai/tap-jsonrepair/jsonrepair
 
 # from raw string
 jsonrepair -i "{'employees':['John', 'Anna', "
