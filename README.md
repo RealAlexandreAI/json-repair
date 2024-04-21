@@ -148,6 +148,9 @@ _You can also download binary from Release, please refer to the [Releases](https
 - [x] Convert project from Python
 - [x] Minimum Go version 
 - [x] Cover test cases
+- [x] Terminal Cli support
+- [x] Workflow and Github Action
+- [x] Add Homebrew tap
 - [ ] Support Full-width character detection
 
 See the [open issues](https://github.com/RealAlexandreAI/json-repair/issues) for a full list of proposed features (and known issues).
