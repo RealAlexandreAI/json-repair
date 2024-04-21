@@ -57,7 +57,7 @@ Welcome to the json-repair, your go-to solution for fixing those pesky JSON anom
 - 🔗 Zero Dependencies: We've crafted a tool with zero external dependencies, keeping it lean and mean.
 - 📚 Rich Test Cases: Benefit from a comprehensive suite of test cases that ensure reliability and accuracy.
 - 🤖 Auto-Detection & Repair: Intelligently identifies and corrects a wide range of JSON errors, from syntax to structural issues.
-- 📐 Customizable: Offers the flexibility to tailor the repair process to your project's specific needs.
+- 📐 Terminal Cli Support: The feature can also be used in the command line and can be chained with command pipes.
 - ⚙️ No Anxiety About Error: json-repair always gives the string result.
 - 🌐 Open Source: Join a vibrant community of developers contributing to the ongoing evolution of the toolkit.
 
@@ -124,6 +124,22 @@ _For more examples, please refer to the [Test Cases](https://github.com/RealAlex
  
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+## Terminal Cli
+
+
+```bash
+
+brew install RealAlexandreAI/tap-jsonrepair/jsonrepair
+
+# from raw string
+jsonrepair -i "{'employees':['John', 'Anna', "
+# output: {"employees":["John", "Anna", "Peter"]} 
+
+# from file 
+jsonrepair -f <json-file>.json
+```
+
+_You can also download binary from Release, please refer to the [Releases](https://github.com/RealAlexandreAI/json-repair/releases)._
 
 
 <!-- ROADMAP -->
