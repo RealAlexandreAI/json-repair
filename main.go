@@ -35,20 +35,18 @@ func RepairJSON(in string) string {
 //	return *JSONParser
 func NewJSONParser(in string) *JSONParser {
 	return &JSONParser{
-		container:   in,
-		index:       0,
-		marker:      "",
-		markerStack: []string{},
+		container: in,
+		index:     0,
+		marker:    []string{},
 	}
 }
 
 // JSONParser
 // Description:
 type JSONParser struct {
-	container   string
-	index       int
-	marker      string
-	markerStack []string
+	container string
+	index     int
+	marker    []string
 }
 
 // parseJSON
@@ -73,7 +71,7 @@ func (p *JSONParser) parseJSON() interface{} {
 	} else if c == '[' {
 		p.index++
 		return p.parseArray()
-	} else if c == '}' && p.marker == "object_value" {
+	} else if c == '}' && p.getMarker() == "object_value" {
 		return ""
 	} else if c == '"' {
 		return p.parseString()
@@ -115,7 +113,7 @@ func (p *JSONParser) parseObject() map[string]interface{} {
 			p.index++
 		}
 
-		p.updateMarker("object_key")
+		p.setMarker("object_key")
 		p.skipWhitespaces()
 
 		var key string
@@ -141,11 +139,11 @@ func (p *JSONParser) parseObject() map[string]interface{} {
 		}
 
 		p.index++
-		p.updateMarker("")
-		p.updateMarker("object_value")
+		p.resetMarker()
+		p.setMarker("object_value")
 		value := p.parseJSON()
 
-		p.updateMarker("")
+		p.resetMarker()
 		if key == "" && value == "" {
 			continue
 		}
@@ -195,7 +193,7 @@ func (p *JSONParser) parseArray() []interface{} {
 			c, b = p.getByte(0)
 		}
 
-		if p.marker == "object_value" && c == '}' {
+		if p.getMarker() == "object_value" && c == '}' {
 			break
 		}
 	}
@@ -252,9 +250,9 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 
 	for b && c != rStringDelimiter {
 		if fixedQuotes {
-			if p.marker == "object_key" && (c == ':' || unicode.IsSpace(rune(c))) {
+			if p.getMarker() == "object_key" && (c == ':' || unicode.IsSpace(rune(c))) {
 				break
-			} else if p.marker == "object_value" && contains([]byte{',', '}'}, c) {
+			} else if p.getMarker() == "object_value" && contains([]byte{',', '}'}, c) {
 				break
 			}
 		}
@@ -293,7 +291,7 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 		}
 	}
 
-	if b && fixedQuotes && p.marker == "object_key" && unicode.IsSpace(rune(c)) {
+	if b && fixedQuotes && p.getMarker() == "object_key" && unicode.IsSpace(rune(c)) {
 		p.skipWhitespaces()
 		c, b = p.getByte(0)
 		if !b || !contains([]byte{':', ','}, c) {
@@ -415,23 +413,38 @@ func (p *JSONParser) insertByte(in byte) {
 	p.index++
 }
 
-// updateMarker
+// setMarker
 //
-//	Description:
-//	receiver p
-//	param in
-func (p *JSONParser) updateMarker(in string) {
+//	@Description:
+//	@receiver p
+//	@param in
+func (p *JSONParser) setMarker(in string) {
 	if in != "" {
-		if p.marker != "" {
-			p.markerStack = append(p.markerStack, p.marker)
-		}
-		p.marker = in
+		p.marker = append(p.marker, in)
+	}
+}
+
+// resetMarker
+//
+//	@Description:
+//	@receiver p
+func (p *JSONParser) resetMarker() {
+	//if len(p.marker) > 0 {
+	//	p.marker = p.marker[:len(p.marker)-1]
+	//}
+	p.marker = []string{}
+}
+
+// getMarker
+//
+//	@Description:
+//	@receiver p
+//	@return string
+func (p *JSONParser) getMarker() string {
+	if len(p.marker) > 0 {
+		return p.marker[0]
 	} else {
-		if len(p.markerStack) > 0 {
-			p.marker = p.markerStack[len(p.markerStack)-1]
-		} else {
-			p.marker = ""
-		}
+		return ""
 	}
 }
 
