@@ -8,11 +8,11 @@ import (
 	"testing"
 )
 
-// Test_example
+// Test_Example
 //
 //	@Description:
 //	@param t
-func Test_example(t *testing.T) {
+func Test_Example(t *testing.T) {
 
 	in := "```json {'employees':['John', 'Anna', ```"
 
@@ -20,11 +20,11 @@ func Test_example(t *testing.T) {
 	fmt.Println(rst)
 }
 
-// TestRepairJSON
+// Test_RepairJSON
 //
 //	Description:
 //	param t
-func TestRepairJSON(t *testing.T) {
+func Test_RepairJSON(t *testing.T) {
 	tests := []struct {
 		in   string
 		want string
