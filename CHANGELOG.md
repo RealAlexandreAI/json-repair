@@ -4,6 +4,7 @@
 
 ### New Features
 - Introduced `jsonrepair` as a command-line interface for easier use.
+- Add Homebrew tap.
 
 ### Improvements
 - Initialized `goreleaser` to streamline the release process.

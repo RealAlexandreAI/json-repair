@@ -60,20 +60,23 @@ release:
   draft: false
 
 brews:
-  - tap:
+  - name: jsonrepair
+    repository:
       owner: RealAlexandreAI
-      name: homebrew-tap
+      name: jsonrepair-homebrew-tap
+      branch: main
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     url_template: "https://github.com/RealAlexandreAI/json-repair/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     download_strategy: CurlDownloadStrategy
     # Git author used to commit to the repository.
     # Defaults are shown.
     commit_author:
-      name: GoReleaser Bot
-      email: goreleaser@carlosbecker.com
-    folder: HomebrewFormula
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    directory: Formula
     homepage: "https://github.com/RealAlexandreAI/json-repair"
     description: "🔧 Repair JSON! Solution for JSON Anomalies from LLMs"
-    license: "GPLv3 License"
+    license: "GPLv3"
     skip_upload: false
     test: |
-      system "#{bin}/jsonrepair version"
+      system "#{bin}/jsonrepair -v"
