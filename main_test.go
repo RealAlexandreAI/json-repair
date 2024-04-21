@@ -2,10 +2,23 @@ package jsonrepair
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
 )
+
+// Test_example
+//
+//	@Description:
+//	@param t
+func Test_example(t *testing.T) {
+
+	in := "```json {'employees':['John', 'Anna', ```"
+
+	rst := RepairJSON(in)
+	fmt.Println(rst)
+}
 
 // TestRepairJSON
 //
