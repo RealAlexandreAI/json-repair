@@ -8,7 +8,7 @@ import (
 	"github.com/RealAlexandreAI/json-repair"
 )
 
-const AppVersion = "0.0.4"
+const AppVersion = "0.0.5"
 
 var (
 	versionFlag bool

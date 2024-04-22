@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.5
+
+### Improvements
+- Tuning goreleaser, remove draft
+- UT action
+- Change minimal Go version
+
 ## v0.0.4
 
 ### New Features
