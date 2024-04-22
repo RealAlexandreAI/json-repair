@@ -96,8 +96,6 @@ To add the JSON Repair to your Go project, use the following command:
 go get github.com/RealAlexandreAI/json-repair
 ```
 
-> Any Go version is compatible even v1.1 .
-
 <!-- USAGE EXAMPLES -->
 ## Usage
 
