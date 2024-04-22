@@ -8,17 +8,6 @@ import (
 	"testing"
 )
 
-// Test_Example
-//
-//	@Description:
-//	@param t
-func Test_Example(t *testing.T) {
-	in := "```json {'employees':['John', 'Anna', ```"
-
-	rst := RepairJSON(in)
-	fmt.Println(rst)
-}
-
 // Test_RepairJSON
 //
 //	Description:
