@@ -65,31 +65,35 @@ func (p *JSONParser) parseJSON() interface{} {
 		lc = strings.ToLower(string(c))
 	}
 
-	if c == '{' {
+	switch {
+	case c == '{':
 		p.index++
 		return p.parseObject()
-	} else if c == '[' {
+	case c == '[':
 		p.index++
 		return p.parseArray()
-	} else if c == '}' && p.getMarker() == "object_value" {
+	case c == '}' && p.getMarker() == "object_value":
 		return ""
-	} else if c == '"' {
+	case c == '"':
 		return p.parseString()
-	} else if c == '\'' {
+	case c == '\'':
 		return p.parseString('\'')
-		// TODO Full-width character support
-		//} else if c == 0xE3 && p.index <= len(p.container)-3 && p.container[p.index+1] == 0x80 && p.container[p.index+2] == 0x8C {
-		//	return p.parseString('“', '”')
-	} else if unicode.IsNumber(rune(c)) || c == '-' {
+
+	// TODO Full-width character support
+	/*
+		case c == 0xE3 && p.index <= len(p.container)-3 && p.container[p.index+1] == 0x80 && p.container[p.index+2] == 0x8C:
+			return p.parseString('“', '”')
+	*/
+	case unicode.IsNumber(rune(c)) || c == '-':
 		return p.parseNumber()
-	} else if lc == "t" || lc == "f" || lc == "n" {
+	case lc == "t" || lc == "f" || lc == "n":
 		return p.parseBooleanOrNull()
-	} else if unicode.IsLetter(rune(c)) {
+	case unicode.IsLetter(rune(c)):
 		return p.parseString()
-	} else {
-		p.index++
-		return p.parseJSON()
 	}
+
+	p.index++
+	return p.parseJSON()
 }
 
 // parseObject
@@ -275,18 +279,19 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 
 			if p.container[p.index+1] == rStringDelimiter {
 				p.removeByte(0)
-			} else {
-				i := 2
-				nextByte, nextB := p.getByte(i)
-				for nextB && nextByte != rStringDelimiter {
-					i++
-					nextByte, nextB = p.getByte(i)
-				}
+				continue
+			}
 
-				if nextB {
-					p.index++
-					c, b = p.getByte(0)
-				}
+			i := 2
+			nextByte, nextB := p.getByte(i)
+			for nextB && nextByte != rStringDelimiter {
+				i++
+				nextByte, nextB = p.getByte(i)
+			}
+
+			if nextB {
+				p.index++
+				c, b = p.getByte(0)
 			}
 		}
 	}
@@ -328,19 +333,22 @@ func (p *JSONParser) parseNumber() interface{} {
 		c, b = p.getByte(0)
 	}
 
-	if len(rst) > 0 {
-		if contains(rst, '.') || contains(rst, 'e') || contains(rst, 'E') {
-			r, _ := strconv.ParseFloat(string(rst), 32)
-			return r
-		} else if string(rst) == "-" {
-			return p.parseJSON()
-		} else {
-			r, _ := strconv.Atoi(string(rst))
-			return r
-		}
-	} else {
+	switch {
+	case len(rst) == 0:
 		return p.parseString()
+
+	case contains(rst, '.'),
+		contains(rst, 'e'),
+		contains(rst, 'E'):
+		r, _ := strconv.ParseFloat(string(rst), 32)
+		return r
+
+	case string(rst) == "-":
+		return p.parseJSON()
 	}
+
+	r, _ := strconv.Atoi(string(rst))
+	return r
 }
 
 // parseBooleanOrNull
@@ -351,13 +359,14 @@ func (p *JSONParser) parseNumber() interface{} {
 func (p *JSONParser) parseBooleanOrNull() interface{} {
 	ls := strings.ToLower(p.container[p.index:])
 
-	if strings.HasPrefix(ls, "true") {
+	switch {
+	case strings.HasPrefix(ls, "true"):
 		p.index += 4
 		return true
-	} else if strings.HasPrefix(ls, "false") {
+	case strings.HasPrefix(ls, "false"):
 		p.index += 5
 		return false
-	} else if strings.HasPrefix(ls, "null") {
+	case strings.HasPrefix(ls, "null"):
 		p.index += 4
 		return nil
 	}
@@ -429,9 +438,9 @@ func (p *JSONParser) setMarker(in string) {
 //	@Description:
 //	@receiver p
 func (p *JSONParser) resetMarker() {
-	//if len(p.marker) > 0 {
-	//	p.marker = p.marker[:len(p.marker)-1]
-	//}
+	// if len(p.marker) > 0 {
+	// 	p.marker = p.marker[:len(p.marker)-1]
+	// }
 	p.marker = []string{}
 }
 
@@ -443,9 +452,9 @@ func (p *JSONParser) resetMarker() {
 func (p *JSONParser) getMarker() string {
 	if len(p.marker) > 0 {
 		return p.marker[0]
-	} else {
-		return ""
 	}
+
+	return ""
 }
 
 // contains
