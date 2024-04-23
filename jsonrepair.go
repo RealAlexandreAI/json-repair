@@ -154,7 +154,7 @@ func (p *JSONParser) parseObject() map[string]interface{} {
 		rst[key] = value
 
 		c, b = p.getByte(0)
-		if b && contains([]byte{',', '\'', '"'}, c) {
+		if b && bytes.IndexByte([]byte{',', '\'', '"'}, c) != -1 {
 			p.index++
 		}
 
@@ -256,7 +256,7 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 		if fixedQuotes {
 			if p.getMarker() == "object_key" && (c == ':' || unicode.IsSpace(rune(c))) {
 				break
-			} else if p.getMarker() == "object_value" && contains([]byte{',', '}'}, c) {
+			} else if p.getMarker() == "object_value" && bytes.IndexByte([]byte{',', '}'}, c) != -1 {
 				break
 			}
 		}
@@ -265,7 +265,7 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 		c, b = p.getByte(0)
 
 		if p.index-1 >= 0 && p.container[p.index-1] == '\\' {
-			if contains([]byte{rStringDelimiter, 't', 'n', 'r', 'b', '\\'}, c) {
+			if bytes.IndexByte([]byte{rStringDelimiter, 't', 'n', 'r', 'b', '\\'}, c) != -1 {
 				p.index++
 				c, b = p.getByte(0)
 			} else {
@@ -275,7 +275,7 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 		}
 
 		if c == rStringDelimiter &&
-			p.index+1 < len(p.container) && !contains([]byte{',', ':', ']', '}'}, p.container[p.index+1]) {
+			p.index+1 < len(p.container) && bytes.IndexByte([]byte{',', ':', ']', '}'}, p.container[p.index+1]) == -1 {
 
 			if p.container[p.index+1] == rStringDelimiter {
 				p.removeByte(0)
@@ -299,7 +299,7 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 	if b && fixedQuotes && p.getMarker() == "object_key" && unicode.IsSpace(rune(c)) {
 		p.skipWhitespaces()
 		c, b = p.getByte(0)
-		if !b || !contains([]byte{':', ','}, c) {
+		if !b || bytes.IndexByte([]byte{':', ','}, c) == -1 {
 			return ""
 		}
 	}
@@ -327,7 +327,7 @@ func (p *JSONParser) parseNumber() interface{} {
 	var c byte
 	var b bool
 
-	for c, b = p.getByte(0); b && contains(numberChars, c); {
+	for c, b = p.getByte(0); b && bytes.IndexByte(numberChars, c) != -1; {
 		rst = append(rst, c)
 		p.index++
 		c, b = p.getByte(0)
@@ -337,9 +337,9 @@ func (p *JSONParser) parseNumber() interface{} {
 	case len(rst) == 0:
 		return p.parseString()
 
-	case contains(rst, '.'),
-		contains(rst, 'e'),
-		contains(rst, 'E'):
+	case bytes.IndexByte(rst, '.') != -1,
+		bytes.IndexByte(rst, 'e') != -1,
+		bytes.IndexByte(rst, 'E') != -1:
 		r, _ := strconv.ParseFloat(string(rst), 32)
 		return r
 
@@ -455,19 +455,4 @@ func (p *JSONParser) getMarker() string {
 	}
 
 	return ""
-}
-
-// contains
-//
-//	Description:
-//	param slice
-//	param element
-//	return bool
-func contains(slice []byte, element byte) bool {
-	for _, el := range slice {
-		if el == element {
-			return true
-		}
-	}
-	return false
 }
