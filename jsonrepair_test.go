@@ -282,6 +282,10 @@ func Test_RepairJSON(t *testing.T) {
 			in:   `{\n"html": "<h3 id="aaa">Waarom meer dan 200 Technical Experts - "Passie voor techniek"?</h3>"}`,
 			want: `{"html":"<h3 id=\"aaa\">Waarom meer dan 200 Technical Experts - \"Passie voor techniek\"?</h3>"}`,
 		},
+		{
+			in:   `{"key": .25}`,
+			want: `{"key": 0.25}`,
+		},
 	}
 
 	caseNo := 0

@@ -84,7 +84,7 @@ func (p *JSONParser) parseJSON() interface{} {
 		case c == 0xE3 && p.index <= len(p.container)-3 && p.container[p.index+1] == 0x80 && p.container[p.index+2] == 0x8C:
 			return p.parseString('“', '”')
 	*/
-	case unicode.IsNumber(rune(c)) || c == '-':
+	case unicode.IsNumber(rune(c)) || bytes.IndexByte([]byte{'-', '.'}, c) != -1:
 		return p.parseNumber()
 	case lc == "t" || lc == "f" || lc == "n":
 		return p.parseBooleanOrNull()
