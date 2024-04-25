@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Use bytes.IndexByte instead of Contains
-
+- fix upstream #29
 
 ## v0.0.5
 
