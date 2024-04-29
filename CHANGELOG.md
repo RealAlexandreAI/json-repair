@@ -4,6 +4,7 @@
 
 - Use bytes.IndexByte instead of Contains
 - fix upstream #29
+- Split MustRepairJSON
 
 ## v0.0.5
 

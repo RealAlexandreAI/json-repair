@@ -291,9 +291,17 @@ func Test_RepairJSON(t *testing.T) {
 	caseNo := 0
 	for _, tt := range tests {
 		t.Run("CASE-"+strconv.Itoa(caseNo), func(t *testing.T) {
-			got := RepairJSON(tt.in)
-			if !jsonStringsEqual(got, tt.want) {
-				t.Errorf("RepairJSON() = %v, want %v, param in is %v", got, tt.want, tt.in)
+			got1, err := RepairJSON(tt.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !jsonStringsEqual(got1, tt.want) {
+				t.Errorf("RepairJSON() = %v, want %v, param in is %v", got1, tt.want, tt.in)
+			}
+
+			got2 := MustRepairJSON(tt.in)
+			if !jsonStringsEqual(got2, tt.want) {
+				t.Errorf("RepairJSON() = %v, want %v, param in is %v", got2, tt.want, tt.in)
 			}
 		})
 		caseNo++

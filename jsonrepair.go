@@ -3,6 +3,8 @@ package jsonrepair
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"unicode"
@@ -10,22 +12,64 @@ import (
 
 // RepairJSON
 //
-//	Description:
-//	param in
-//	return string
-func RepairJSON(in string) string {
-	in = strings.TrimSpace(in)
-	in = strings.TrimPrefix(in, "```json")
+//	@Description:
+//	@param src
+//	@return dst
+//	@return err
+func RepairJSON(src string) (dst string, err error) {
+	defer func() {
+		if errR := recover(); errR != nil {
+			stack := string(debug.Stack())
+			err = fmt.Errorf("repair json panic: %s", stack)
+			return
+		}
+	}()
 
-	if json.Valid([]byte(in)) {
-		dst := &bytes.Buffer{}
-		json.Compact(dst, []byte(in))
-		return dst.String()
+	src = strings.TrimSpace(src)
+	src = strings.TrimPrefix(src, "```json")
+
+	if json.Valid([]byte(src)) {
+		buf := &bytes.Buffer{}
+		if err = json.Compact(buf, []byte(src)); err != nil {
+			return "", err
+		}
+		dst = buf.String()
+		return
 	}
 
-	jp := NewJSONParser(in)
-	marshal, _ := json.Marshal(jp.parseJSON())
-	return string(marshal)
+	jp := NewJSONParser(src)
+	bs, err := json.Marshal(jp.parseJSON())
+	dst = string(bs)
+	return
+}
+
+// MustRepairJSON
+//
+//	@Description:
+//	@param src
+//	@return dst
+func MustRepairJSON(src string) (dst string) {
+	defer func() {
+		if errR := recover(); errR != nil {
+			dst = ""
+			return
+		}
+	}()
+
+	src = strings.TrimSpace(src)
+	src = strings.TrimPrefix(src, "```json")
+
+	if json.Valid([]byte(src)) {
+		buf := &bytes.Buffer{}
+		json.Compact(buf, []byte(src))
+		dst = buf.String()
+		return
+	}
+
+	jp := NewJSONParser(src)
+	bs, _ := json.Marshal(jp.parseJSON())
+	dst = string(bs)
+	return
 }
 
 // NewJSONParser
@@ -53,8 +97,8 @@ type JSONParser struct {
 //
 //	Description:
 //	receiver p
-//	return interface{}
-func (p *JSONParser) parseJSON() interface{} {
+//	return any
+func (p *JSONParser) parseJSON() any {
 	c, b := p.getByte(0)
 	if !b {
 		return ""
@@ -100,9 +144,9 @@ func (p *JSONParser) parseJSON() interface{} {
 //
 //	Description:
 //	receiver p
-//	return map[string]interface{}
-func (p *JSONParser) parseObject() map[string]interface{} {
-	rst := make(map[string]interface{})
+//	return map[string]any
+func (p *JSONParser) parseObject() map[string]any {
+	rst := make(map[string]any)
 
 	var c byte
 	var b bool
@@ -173,9 +217,9 @@ func (p *JSONParser) parseObject() map[string]interface{} {
 //
 //	Description:
 //	receiver p
-//	return []interface{}
-func (p *JSONParser) parseArray() []interface{} {
-	rst := make([]interface{}, 0)
+//	return []any
+func (p *JSONParser) parseArray() []any {
+	rst := make([]any, 0)
 	var c byte
 	var b bool
 
@@ -220,8 +264,8 @@ func (p *JSONParser) parseArray() []interface{} {
 //	Description:
 //	receiver p
 //	param quotes
-//	return interface{}
-func (p *JSONParser) parseString(quotes ...byte) interface{} {
+//	return any
+func (p *JSONParser) parseString(quotes ...byte) any {
 	fixedQuotes := false
 	var lStringDelimiter, rStringDelimiter byte = '"', '"'
 
@@ -319,8 +363,8 @@ func (p *JSONParser) parseString(quotes ...byte) interface{} {
 //
 //	Description:
 //	receiver p
-//	return interface{}
-func (p *JSONParser) parseNumber() interface{} {
+//	return any
+func (p *JSONParser) parseNumber() any {
 	var rst []byte
 	numberChars := []byte{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.', 'e', 'E'}
 
@@ -355,8 +399,8 @@ func (p *JSONParser) parseNumber() interface{} {
 //
 //	Description:
 //	receiver p
-//	return interface{}
-func (p *JSONParser) parseBooleanOrNull() interface{} {
+//	return any
+func (p *JSONParser) parseBooleanOrNull() any {
 	ls := strings.ToLower(p.container[p.index:])
 
 	switch {
