@@ -61,6 +61,7 @@ func MustRepairJSON(src string) (dst string) {
 
 	if json.Valid([]byte(src)) {
 		buf := &bytes.Buffer{}
+		//nolint
 		json.Compact(buf, []byte(src))
 		dst = buf.String()
 		return

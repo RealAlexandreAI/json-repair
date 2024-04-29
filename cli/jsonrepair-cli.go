@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/RealAlexandreAI/json-repair"
 )
@@ -62,7 +62,7 @@ func main() {
 			fmt.Println("---")
 		}
 
-		fi, err := ioutil.ReadFile(file)
+		fi, err := os.ReadFile(file)
 		if err != nil {
 			fmt.Printf("[json-repair] invalid file path: %s", file)
 			fmt.Println()
