@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Enhance README
+- Add golangci-lint
+
+## v0.0.6
+
 - Use bytes.IndexByte instead of Contains
 - fix upstream #29
 - Split MustRepairJSON

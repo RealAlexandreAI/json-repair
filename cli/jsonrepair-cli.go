@@ -8,7 +8,7 @@ import (
 	"github.com/RealAlexandreAI/json-repair"
 )
 
-const AppVersion = "0.0.5"
+const AppVersion = "0.0.6"
 
 var (
 	versionFlag bool
@@ -53,7 +53,7 @@ func main() {
 	}
 
 	if input != "" {
-		fmt.Println(jsonrepair.RepairJSON(input))
+		fmt.Println(jsonrepair.MustRepairJSON(input))
 	}
 
 	if file != "" {
@@ -68,6 +68,6 @@ func main() {
 			fmt.Println()
 			return
 		}
-		fmt.Println(jsonrepair.RepairJSON(string(fi)))
+		fmt.Println(jsonrepair.MustRepairJSON(string(fi)))
 	}
 }
