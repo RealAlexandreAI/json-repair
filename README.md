@@ -37,7 +37,7 @@
   <p align="center">
     JSON Repair: Solution for JSON Anomalies from LLMs.
     <br />
-    <a href="https://goplay.tools/snippet/tKNwcBIsAMV">Online Playground</a>
+    <a href="https://goplay.tools/snippet/zyLfsLcsTwg">Online Playground</a>
     ·
     <a href="https://github.com/RealAlexandreAI/json-repair/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
     ·
@@ -117,8 +117,9 @@ func main() {
 }
 ```
 
+> Additionally, there is `MustRepairJSON` for scenarios that are not suitable for error handling, such as pipes and trusted environments
 
-_For more examples, please refer to the [Test Cases](https://github.com/RealAlexandreAI/json-repair/blob/master/main_test.go) Or <a href="https://goplay.tools/snippet/tKNwcBIsAMV">Online Playground</a>_
+_For more examples, please refer to the [Test Cases](https://github.com/RealAlexandreAI/json-repair/blob/master/main_test.go) Or <a href="https://goplay.tools/snippet/zyLfsLcsTwg">Online Playground</a>_
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
