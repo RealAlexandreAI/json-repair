@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.0.7
+
 - Enhance README
 - Add golangci-lint
 
