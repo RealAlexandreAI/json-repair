@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v0.0.8
+
+- More test cases.
+- Sync upstream.
+
 ## v0.0.7
 
 - Enhance README
