@@ -252,6 +252,7 @@ func (p *JSONParser) parseArray() []any {
 
 	c, b = p.getByte(0)
 	if b && c != ']' {
+		//nolint
 		if c == ',' {
 		}
 		p.index--
