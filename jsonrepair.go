@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -38,7 +39,7 @@ func RepairJSON(src string) (dst string, err error) {
 	}
 
 	jp := NewJSONParser(src)
-	bs, err := json.Marshal(jp.parseJSON())
+	bs, err := JSONMarshal(jp.parseJSON())
 	dst = string(bs)
 	return
 }
@@ -68,7 +69,7 @@ func MustRepairJSON(src string) (dst string) {
 	}
 
 	jp := NewJSONParser(src)
-	bs, _ := json.Marshal(jp.parseJSON())
+	bs, _ := JSONMarshal(jp.parseJSON())
 	dst = string(bs)
 	return
 }
@@ -105,11 +106,6 @@ func (p *JSONParser) parseJSON() any {
 		return ""
 	}
 
-	var lc string
-	if unicode.IsLetter(rune(c)) {
-		lc = strings.ToLower(string(c))
-	}
-
 	switch {
 	case c == '{':
 		p.index++
@@ -117,24 +113,13 @@ func (p *JSONParser) parseJSON() any {
 	case c == '[':
 		p.index++
 		return p.parseArray()
-	case c == '}' && p.getMarker() == "object_value":
+	case c == '}':
 		return ""
-	case c == '"':
-		return p.parseString()
-	case c == '\'':
-		return p.parseString('\'')
-
 	// TODO Full-width character support
-	/*
-		case c == 0xE3 && p.index <= len(p.container)-3 && p.container[p.index+1] == 0x80 && p.container[p.index+2] == 0x8C:
-			return p.parseString('“', '”')
-	*/
+	case bytes.IndexByte([]byte{'"', '\''}, c) != -1 || unicode.IsLetter(rune(c)):
+		return p.parseString()
 	case unicode.IsNumber(rune(c)) || bytes.IndexByte([]byte{'-', '.'}, c) != -1:
 		return p.parseNumber()
-	case lc == "t" || lc == "f" || lc == "n":
-		return p.parseBooleanOrNull()
-	case unicode.IsLetter(rune(c)):
-		return p.parseString()
 	}
 
 	p.index++
@@ -147,18 +132,19 @@ func (p *JSONParser) parseJSON() any {
 //	receiver p
 //	return map[string]any
 func (p *JSONParser) parseObject() map[string]any {
+
 	rst := make(map[string]any)
 
 	var c byte
 	var b bool
 
-	for c, b = p.getByte(0); b && c != '}'; {
+	c, b = p.getByte(0)
+
+	for b && c != '}' {
 		p.skipWhitespaces()
 
 		c, b = p.getByte(0)
 		if b && c == ':' {
-			p.removeByte(0)
-			p.insertByte(',')
 			p.index++
 		}
 
@@ -167,13 +153,16 @@ func (p *JSONParser) parseObject() map[string]any {
 
 		var key string
 		_, b = p.getByte(0)
-		for key = ""; key == "" && b; {
-			key = p.parseJSON().(string)
+		for key == "" && b {
+			currentIndex := p.index
+			key = p.parseString().(string)
 
 			c, b = p.getByte(0)
-			if key == "" && c == ':' {
+			if key == "" && b && c == ':' {
 				key = "empty_placeholder"
 				break
+			} else if key == "" && p.index == currentIndex {
+				p.index++
 			}
 		}
 
@@ -183,8 +172,7 @@ func (p *JSONParser) parseObject() map[string]any {
 		}
 
 		c, b = p.getByte(0)
-		if b && c != ':' {
-			p.insertByte(':')
+		if !b || c != ':' {
 		}
 
 		p.index++
@@ -208,8 +196,8 @@ func (p *JSONParser) parseObject() map[string]any {
 
 	c, b = p.getByte(0)
 	if b && c != '}' {
-		p.insertByte('}')
 	}
+
 	p.index++
 	return rst
 }
@@ -220,21 +208,34 @@ func (p *JSONParser) parseObject() map[string]any {
 //	receiver p
 //	return []any
 func (p *JSONParser) parseArray() []any {
+
 	rst := make([]any, 0)
+
 	var c byte
 	var b bool
 
-	for c, b = p.getByte(0); b && c != ']'; {
+	p.setMarker("array")
+
+	c, b = p.getByte(0)
+
+	for b && c != ']' {
+
+		p.skipWhitespaces()
 		value := p.parseJSON()
 
 		if value == nil {
 			break
 		}
+
 		if tc, ok := value.(string); ok && tc == "" {
 			break
 		}
 
-		rst = append(rst, value)
+		c, b = p.getByte(-1)
+		if value == "..." && b && c == '.' {
+		} else {
+			rst = append(rst, value)
+		}
 
 		c, b = p.getByte(0)
 		for b && (unicode.IsSpace(rune(c)) || c == ',') {
@@ -250,13 +251,12 @@ func (p *JSONParser) parseArray() []any {
 	c, b = p.getByte(0)
 	if b && c != ']' {
 		if c == ',' {
-			p.removeByte(0)
 		}
-		p.insertByte(']')
 		p.index--
 	}
 
 	p.index++
+	p.resetMarker()
 	return rst
 }
 
@@ -266,39 +266,79 @@ func (p *JSONParser) parseArray() []any {
 //	receiver p
 //	param quotes
 //	return any
-func (p *JSONParser) parseString(quotes ...byte) any {
-	fixedQuotes := false
+func (p *JSONParser) parseString() any {
+
+	var missingQuotes, doubledQuotes = false, false
 	var lStringDelimiter, rStringDelimiter byte = '"', '"'
-
-	switch len(quotes) {
-	case 2:
-		lStringDelimiter = quotes[0]
-		rStringDelimiter = quotes[1]
-	case 1:
-		lStringDelimiter = quotes[0]
-		rStringDelimiter = quotes[0]
-	}
-
-	if p.index+1 < len(p.container) && p.container[p.index+1] == lStringDelimiter {
-		p.index++
-	}
 
 	var c byte
 	var b bool
-	c, b = p.getByte(0)
 
-	if b && c != lStringDelimiter {
-		p.insertByte(lStringDelimiter)
-		fixedQuotes = true
-	} else {
+	c, b = p.getByte(0)
+	for b && bytes.IndexByte([]byte{'"', '\''}, c) == -1 && !unicode.IsLetter(rune(c)) {
+		p.index++
+		c, b = p.getByte(0)
+	}
+
+	if !b {
+		return ""
+	}
+
+	switch {
+	case c == '\'':
+
+		lStringDelimiter = '\''
+		rStringDelimiter = '\''
+	case unicode.IsLetter(rune(c)):
+
+		if bytes.IndexByte([]byte{'t', 'f', 'n'}, byte(unicode.ToLower(rune(c)))) != -1 &&
+			p.getMarker() != "object_key" {
+			value := p.parseBooleanOrNull()
+			if vs, ok := value.(string); !ok {
+				return value
+			} else {
+				if vs != "" {
+					return vs
+				}
+			}
+		}
+
+		if p.getMarker() == "" {
+			p.index++
+			return p.parseJSON()
+		}
+
+		missingQuotes = true
+	}
+
+	if !missingQuotes {
 		p.index++
 	}
 
-	start := p.index
+	c, b = p.getByte(0)
+
+	if b && c == lStringDelimiter {
+		i := 1
+		nextC, nextB := p.getByte(i)
+		for nextB && nextC != rStringDelimiter {
+			i++
+			nextC, nextB = p.getByte(i)
+		}
+
+		c, b = p.getByte(i + 1)
+		if nextB && b && c == rStringDelimiter {
+			doubledQuotes = true
+			p.index++
+
+		}
+	}
+
+	var rst []byte
+
 	c, b = p.getByte(0)
 
 	for b && c != rStringDelimiter {
-		if fixedQuotes {
+		if missingQuotes {
 			if p.getMarker() == "object_key" && (c == ':' || unicode.IsSpace(rune(c))) {
 				break
 			} else if p.getMarker() == "object_value" && bytes.IndexByte([]byte{',', '}'}, c) != -1 {
@@ -306,58 +346,101 @@ func (p *JSONParser) parseString(quotes ...byte) any {
 			}
 		}
 
+		rst = append(rst, c)
 		p.index++
+
 		c, b = p.getByte(0)
 
-		if p.index-1 >= 0 && p.container[p.index-1] == '\\' {
+		if len(rst) > 1 && rst[len(rst)-1] == '\\' {
+
+			rst = rst[:len(rst)-1]
+
 			if bytes.IndexByte([]byte{rStringDelimiter, 't', 'n', 'r', 'b', '\\'}, c) != -1 {
+
+				escapeSeqs := map[byte]byte{
+					't': '\t',
+					'n': '\n',
+					'r': '\r',
+					'b': '\b',
+				}
+
+				if ce, ok := escapeSeqs[c]; ok {
+					rst = append(rst, ce)
+				} else {
+					rst = append(rst, c)
+				}
+
 				p.index++
 				c, b = p.getByte(0)
-			} else {
-				p.removeByte(-1)
-				p.index--
 			}
 		}
 
-		if c == rStringDelimiter &&
-			p.index+1 < len(p.container) && bytes.IndexByte([]byte{',', ':', ']', '}'}, p.container[p.index+1]) == -1 {
+		if c == rStringDelimiter {
 
-			if p.container[p.index+1] == rStringDelimiter {
-				p.removeByte(0)
-				continue
-			}
+			if doubledQuotes && p.container[p.index+1] == rStringDelimiter {
 
-			i := 2
-			nextByte, nextB := p.getByte(i)
-			for nextB && nextByte != rStringDelimiter {
-				i++
-				nextByte, nextB = p.getByte(i)
-			}
+			} else {
 
-			if nextB {
-				p.index++
-				c, b = p.getByte(0)
+				i := 1
+				nextC, nextB := p.getByte(i)
+				for nextB && nextC != rStringDelimiter {
+
+					if nextC == lStringDelimiter ||
+						(slices.Contains(p.marker, "object_key") && nextC == ':') ||
+						(slices.Contains(p.marker, "object_value") && bytes.IndexByte([]byte{'}', ','}, nextC) != -1) ||
+						(slices.Contains(p.marker, "array") && bytes.IndexByte([]byte{']', ','}, nextC) != -1) {
+						break
+					}
+
+					i++
+					nextC, nextB = p.getByte(i)
+				}
+
+				if nextC == rStringDelimiter {
+					i++
+					nextC, nextB = p.getByte(i)
+					for nextB && nextC != rStringDelimiter {
+						i++
+						nextC, nextB = p.getByte(i)
+					}
+					i++
+					nextC, nextB = p.getByte(i)
+
+					for nextB && nextC != ':' {
+						if bytes.IndexByte([]byte{lStringDelimiter, rStringDelimiter, ','}, nextC) != -1 {
+							break
+						}
+						i++
+						nextC, nextB = p.getByte(i)
+					}
+
+					// upstream
+					if !nextB || nextC != ':' {
+						rst = append(rst, c)
+						p.index++
+						c, b = p.getByte(0)
+					}
+				}
 			}
 		}
 	}
 
-	if b && fixedQuotes && p.getMarker() == "object_key" && unicode.IsSpace(rune(c)) {
+	if b && missingQuotes &&
+		p.getMarker() == "object_key" &&
+		unicode.IsSpace(rune(c)) {
 		p.skipWhitespaces()
-		c, b = p.getByte(0)
-		if !b || bytes.IndexByte([]byte{':', ','}, c) == -1 {
+		ci, bi := p.getByte(0)
+		if !bi || bytes.IndexByte([]byte{':', ','}, ci) == -1 {
 			return ""
 		}
 	}
 
-	end := p.index
-
-	if c != rStringDelimiter {
-		p.insertByte(rStringDelimiter)
+	if !b || c != rStringDelimiter {
 	} else {
 		p.index++
 	}
 
-	return strings.TrimRightFunc(p.container[start:end], unicode.IsSpace)
+	return strings.TrimRightFunc(string(rst), unicode.IsSpace)
 }
 
 // parseNumber
@@ -367,27 +450,35 @@ func (p *JSONParser) parseString(quotes ...byte) any {
 //	return any
 func (p *JSONParser) parseNumber() any {
 	var rst []byte
-	numberChars := []byte{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.', 'e', 'E'}
+
+	numberChars := []byte{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.', 'e', 'E', '/', ','}
 
 	var c byte
 	var b bool
 
-	for c, b = p.getByte(0); b && bytes.IndexByte(numberChars, c) != -1; {
+	c, b = p.getByte(0)
+
+	for b && bytes.IndexByte(numberChars, c) != -1 {
 		rst = append(rst, c)
 		p.index++
 		c, b = p.getByte(0)
 	}
 
+	if len(rst) > 1 && bytes.IndexByte([]byte{'-', 'e', 'E', '/', ','}, rst[len(rst)-1]) != -1 {
+		rst = rst[:len(rst)-1]
+		p.index--
+	}
+
 	switch {
 	case len(rst) == 0:
-		return p.parseString()
-
+		return p.parseJSON()
+	case bytes.IndexByte(rst, ',') != -1:
+		return string(rst)
 	case bytes.IndexByte(rst, '.') != -1,
 		bytes.IndexByte(rst, 'e') != -1,
 		bytes.IndexByte(rst, 'E') != -1:
 		r, _ := strconv.ParseFloat(string(rst), 32)
 		return r
-
 	case string(rst) == "-":
 		return p.parseJSON()
 	}
@@ -402,36 +493,57 @@ func (p *JSONParser) parseNumber() any {
 //	receiver p
 //	return any
 func (p *JSONParser) parseBooleanOrNull() any {
-	ls := strings.ToLower(p.container[p.index:])
 
-	switch {
-	case strings.HasPrefix(ls, "true"):
-		p.index += 4
-		return true
-	case strings.HasPrefix(ls, "false"):
-		p.index += 5
-		return false
-	case strings.HasPrefix(ls, "null"):
-		p.index += 4
-		return nil
+	startingIndex := p.index
+
+	type genericStruct struct {
+		va string
+		vt any
 	}
 
-	return p.parseString()
-}
+	var gs *genericStruct
 
-// skipWhitespaces
-//
-//	Description:
-//	receiver p
-func (p *JSONParser) skipWhitespaces() {
 	var c byte
 	var b bool
 	c, b = p.getByte(0)
+	c = byte(unicode.ToLower(rune(c)))
 
-	for b && unicode.IsSpace(rune(c)) {
-		p.index++
-		c, b = p.getByte(0)
+	if b {
+		switch {
+		case c == 't':
+			gs = &genericStruct{
+				va: "true",
+				vt: true,
+			}
+		case c == 'f':
+			gs = &genericStruct{
+				va: "false",
+				vt: false,
+			}
+		case c == 'n':
+			gs = &genericStruct{
+				va: "null",
+				vt: nil,
+			}
+		}
 	}
+
+	if gs != nil {
+		i := 0
+		for b && i < len(gs.va) && c == gs.va[i] {
+			i++
+			p.index++
+			c, b = p.getByte(0)
+			c = byte(unicode.ToLower(rune(c)))
+		}
+
+		if i == len(gs.va) {
+			return gs.vt
+		}
+	}
+
+	p.index = startingIndex
+	return ""
 }
 
 // currentChar
@@ -448,23 +560,19 @@ func (p *JSONParser) getByte(count int) (byte, bool) {
 	return p.container[p.index+count], true
 }
 
-// removeByte
+// skipWhitespaces
 //
 //	Description:
 //	receiver p
-//	param count
-func (p *JSONParser) removeByte(count int) {
-	p.container = p.container[:p.index+count] + p.container[p.index+1+count:]
-}
+func (p *JSONParser) skipWhitespaces() {
+	var c byte
+	var b bool
+	c, b = p.getByte(0)
 
-// insertByte
-//
-//	Description:
-//	receiver p
-//	param in
-func (p *JSONParser) insertByte(in byte) {
-	p.container = p.container[:p.index] + string(in) + p.container[p.index:]
-	p.index++
+	for b && unicode.IsSpace(rune(c)) {
+		p.index++
+		c, b = p.getByte(0)
+	}
 }
 
 // setMarker
@@ -483,10 +591,9 @@ func (p *JSONParser) setMarker(in string) {
 //	@Description:
 //	@receiver p
 func (p *JSONParser) resetMarker() {
-	// if len(p.marker) > 0 {
-	// 	p.marker = p.marker[:len(p.marker)-1]
-	// }
-	p.marker = []string{}
+	if len(p.marker) > 0 {
+		p.marker = p.marker[:len(p.marker)-1]
+	}
 }
 
 // getMarker
@@ -496,8 +603,22 @@ func (p *JSONParser) resetMarker() {
 //	@return string
 func (p *JSONParser) getMarker() string {
 	if len(p.marker) > 0 {
-		return p.marker[0]
+		return p.marker[len(p.marker)-1]
 	}
 
 	return ""
+}
+
+// JSONMarshal
+//
+//	Description: ref https://stackoverflow.com/questions/28595664/how-to-stop-json-marshal-from-escaping-and
+//	param t
+//	return []byte
+//	return error
+func JSONMarshal(t any) ([]byte, error) {
+	buffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+	err := encoder.Encode(t)
+	return buffer.Bytes(), err
 }
