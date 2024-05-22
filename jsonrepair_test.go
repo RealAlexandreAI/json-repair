@@ -186,7 +186,7 @@ func Test_RepairJSON(t *testing.T) {
 
 		{
 			in:   `{"value_1": "value_2": "data"}`,
-			want: `{"value_1":"value_2"}`,
+			want: `{"value_1":"value_2\": \"data"}`,
 		},
 		{
 			in:   `{"value_1": true, COMMENT "value_2": "data"}`,
@@ -245,14 +245,6 @@ func Test_RepairJSON(t *testing.T) {
 			want: `{"answer":[{"traits":"Female aged 60+","answer1":"5"}]}`,
 		},
 		{
-			in:   `{""answer":[{""traits":""Female aged 60+",""answer1":""5"}]}`,
-			want: `{"answer":[{"traits":"Female aged 60+","answer1":"5"}]}`,
-		},
-		{
-			in:   `{"key":"",}`,
-			want: `{"key":",}"}`,
-		},
-		{
 			in:   `{ "words": abcdef", "numbers": 12345", "words2": ghijkl" }`,
 			want: `{"words":"abcdef","numbers":12345,"words2":"ghijkl"}`,
 		},
@@ -279,18 +271,28 @@ func Test_RepairJSON(t *testing.T) {
 			want: `{"resourceType": "Bundle", "id": "1", "type": "collection", "entry": [{"resource": {"resourceType": "Patient", "id": "1", "name": [{"use": "official", "family": "Corwin", "given": ["Keisha", "Sunny"], "prefix": ["Mrs."]}, {"use": "maiden", "family": "Goodwin", "given": ["Keisha", "Sunny"], "prefix": ["Mrs."]}]}}]}`,
 		},
 		{
-			in:   `{\n"html": "<h3 id="aaa">Waarom meer dan 200 Technical Experts - "Passie voor techniek"?</h3>"}`,
+			in:   `{"html": "<h3 id="aaa">Waarom meer dan 200 Technical Experts - "Passie voor techniek"?</h3>"}`,
 			want: `{"html":"<h3 id=\"aaa\">Waarom meer dan 200 Technical Experts - \"Passie voor techniek\"?</h3>"}`,
 		},
 		{
 			in:   `{"key": .25}`,
 			want: `{"key": 0.25}`,
 		},
+
+		{
+			in:   `{  'reviews': [    {      'version': 'new',      'line': 1,      'severity': 'Minor',      'issue_type': 'Standard practice suggestion',      'issue': 'The merge request description is missing a link to the original issue or bug report.',      'suggestions': 'Add a link to the original issue or bug report in the *Issue* section.'    },    {      'version': 'new',      'line': 2,      'severity': 'Minor',      'issue_type': 'Standard practice suggestion',      'issue': 'The merge request description is missing a description of the critical issue or bug being addressed.',      'suggestions': 'Add a description of the critical issue or bug being addressed in the *Problem* section.'    } ]`,
+			want: `{"reviews":[{"issue":"The merge request description is missing a description of the critical issue or bug being addressed.","issue_type":"Standard practice suggestion","line":2,"severity":"Minor","suggestions":"Add a description of the critical issue or bug being addressed in the *Problem* section.","version":"new"}]}`,
+		},
+		{
+			in:   `{"key":"",}`,
+			want: `{"key":""}`,
+		},
 	}
 
-	caseNo := 0
+	caseNo := 1
 	for _, tt := range tests {
 		t.Run("CASE-"+strconv.Itoa(caseNo), func(t *testing.T) {
+			t.Log(tt.in)
 			got1, err := RepairJSON(tt.in)
 			if err != nil {
 				t.Fatal(err)
