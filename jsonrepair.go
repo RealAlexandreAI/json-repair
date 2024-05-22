@@ -172,6 +172,7 @@ func (p *JSONParser) parseObject() map[string]any {
 		}
 
 		c, b = p.getByte(0)
+		//nolint
 		if !b || c != ':' {
 		}
 
@@ -195,6 +196,7 @@ func (p *JSONParser) parseObject() map[string]any {
 	}
 
 	c, b = p.getByte(0)
+	//nolint
 	if b && c != '}' {
 	}
 
