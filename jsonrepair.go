@@ -193,6 +193,7 @@ func (p *JSONParser) parseObject() map[string]any {
 		}
 
 		p.skipWhitespaces()
+		c, b = p.getByte(0)
 	}
 
 	c, b = p.getByte(0)

@@ -281,11 +281,15 @@ func Test_RepairJSON(t *testing.T) {
 
 		{
 			in:   `{  'reviews': [    {      'version': 'new',      'line': 1,      'severity': 'Minor',      'issue_type': 'Standard practice suggestion',      'issue': 'The merge request description is missing a link to the original issue or bug report.',      'suggestions': 'Add a link to the original issue or bug report in the *Issue* section.'    },    {      'version': 'new',      'line': 2,      'severity': 'Minor',      'issue_type': 'Standard practice suggestion',      'issue': 'The merge request description is missing a description of the critical issue or bug being addressed.',      'suggestions': 'Add a description of the critical issue or bug being addressed in the *Problem* section.'    } ]`,
-			want: `{"reviews":[{"issue":"The merge request description is missing a description of the critical issue or bug being addressed.","issue_type":"Standard practice suggestion","line":2,"severity":"Minor","suggestions":"Add a description of the critical issue or bug being addressed in the *Problem* section.","version":"new"}]}`,
+			want: `{"reviews":[{"issue":"The merge request description is missing a link to the original issue or bug report.","issue_type":"Standard practice suggestion","line":1,"severity":"Minor","suggestions":"Add a link to the original issue or bug report in the *Issue* section.","version":"new"},{"issue":"The merge request description is missing a description of the critical issue or bug being addressed.","issue_type":"Standard practice suggestion","line":2,"severity":"Minor","suggestions":"Add a description of the critical issue or bug being addressed in the *Problem* section.","version":"new"}]}`,
 		},
 		{
 			in:   `{"key":"",}`,
 			want: `{"key":""}`,
+		},
+		{
+			in:   "```json{\"array_key\": [{\"item_key\": 1\n}], \"outer_key\": 2}```",
+			want: `{"array_key": [{"item_key": 1}], "outer_key": 2}`,
 		},
 	}
 
