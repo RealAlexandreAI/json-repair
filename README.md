@@ -32,7 +32,7 @@
     <img src="images/logo.png" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">json-repair</h3>
+<h3 align="center">json-repair</h3>
 
   <p align="center">
     JSON Repair: Solution for JSON Anomalies from LLMs.
@@ -47,20 +47,22 @@
 
 
 <!-- ABOUT THE PROJECT -->
+
 ## 🔧 Repair JSON! Solution for JSON Anomalies from LLMs
 
-Welcome to the json-repair, your go-to solution for fixing those pesky JSON anomalies that can sidetrack your Large Language Model (LLM) processes. Our toolkit is designed to be the Swiss Army knife for all your JSON repair needs.
+Welcome to the json-repair, your go-to solution for fixing those pesky JSON anomalies that can sidetrack your Large
+Language Model (LLM) processes. Our toolkit is designed to be the Swiss Army knife for all your JSON repair needs.
 
 ### 🎯 Why Choose JSON Repair?
 
 - 🏎️ GO Compatibility: Our library ensures a seamless experience for Go developers with its excellent compatibility.
 - 🔗 Zero Dependencies: We've crafted a tool with zero external dependencies, keeping it lean and mean.
 - 📚 Rich Test Cases: Benefit from a comprehensive suite of test cases that ensure reliability and accuracy.
-- 🤖 Auto-Detection & Repair: Intelligently identifies and corrects a wide range of JSON errors, from syntax to structural issues.
+- 🤖 Auto-Detection & Repair: Intelligently identifies and corrects a wide range of JSON errors, from syntax to
+  structural issues.
 - 📐 Terminal CLI Support: The feature can also be used in the command-line and can be chained with command pipes.
 - ⚙️ No Anxiety About Error: json-repair always gives the string result.
 - 🌐 Open Source: Join a vibrant community of developers contributing to the ongoing evolution of the toolkit.
-
 
 ### 🔍 Supported Broken LLM JSON Output
 
@@ -84,12 +86,13 @@ Welcome to the json-repair, your go-to solution for fixing those pesky JSON anom
 - Incorrect key-value pair `{"key":"",}`
 - etc.
 
-
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 <!-- GETTING STARTED -->
+
 ## 🏁 Getting Started
+
 To add the JSON Repair to your Go project, use the following command:
 
 ```shell
@@ -97,8 +100,8 @@ go get github.com/RealAlexandreAI/json-repair
 ```
 
 <!-- USAGE EXAMPLES -->
-## Usage
 
+## Usage
 
 ```go
 package main
@@ -117,14 +120,16 @@ func main() {
 }
 ```
 
-> Additionally, there is `MustRepairJSON` for scenarios that are not suitable for error handling, such as pipes and trusted environments
+> Additionally, there is `MustRepairJSON` for scenarios that are not suitable for error handling, such as pipes and
+> trusted environments
 
-_For more examples, please refer to the [Test Cases](https://github.com/RealAlexandreAI/json-repair/blob/master/main_test.go) Or <a href="https://goplay.tools/snippet/zyLfsLcsTwg">Online Playground</a>_
+_For more examples, please refer to
+the [Test Cases](https://github.com/RealAlexandreAI/json-repair/blob/master/main_test.go)
+Or <a href="https://goplay.tools/snippet/zyLfsLcsTwg">Online Playground</a>_
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Terminal CLI
-
 
 ```bash
 
@@ -138,10 +143,12 @@ jsonrepair -i "{'employees':['John', 'Anna', "
 jsonrepair -f <json-file>.json
 ```
 
-_You can also download binary from Release, please refer to the [Releases](https://github.com/RealAlexandreAI/json-repair/releases)._
+_You can also download binary from Release, please refer to
+the [Releases](https://github.com/RealAlexandreAI/json-repair/releases)._
 
 
 <!-- ROADMAP -->
+
 ## Roadmap
 
 - [x] Convert project from Python
@@ -152,18 +159,22 @@ _You can also download binary from Release, please refer to the [Releases](https
 - [x] Add Homebrew tap
 - [ ] Support Full-width character detection
 
-See the [open issues](https://github.com/RealAlexandreAI/json-repair/issues) for a full list of proposed features (and known issues).
+See the [open issues](https://github.com/RealAlexandreAI/json-repair/issues) for a full list of proposed features (and
+known issues).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 
 <!-- CONTRIBUTING -->
+
 ## Contributing
 
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any
+contributions you make are **greatly appreciated**.
 
-If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
+If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also
+simply open an issue with the tag "enhancement".
 Don't forget to give the project a star! Thanks again!
 
 1. Fork the Project
@@ -174,13 +185,12 @@ Don't forget to give the project a star! Thanks again!
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
 ## Related Project
 
 - [python json_repair](https://github.com/mangiucugna/json_repair) - Inspiration of json-repair.
 
-
 <!-- LICENSE -->
+
 ## License
 
 Distributed under the GPLv3 License. See `LICENSE` for more information.
@@ -190,6 +200,7 @@ Distributed under the GPLv3 License. See `LICENSE` for more information.
 
 
 <!-- CONTACT -->
+
 ## Contact
 
 RealAlexandreAI - [@RealAlexandreAI](https://twitter.com/RealAlexandreAI)
@@ -201,14 +212,25 @@ Project Link: [https://github.com/RealAlexandreAI/json-repair](https://github.co
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
+
 [contributors-shield]: https://img.shields.io/github/contributors/RealAlexandreAI/json-repair.svg?style=for-the-badge
+
 [contributors-url]: https://github.com/RealAlexandreAI/json-repair/graphs/contributors
+
 [forks-shield]: https://img.shields.io/github/forks/RealAlexandreAI/json-repair.svg?style=for-the-badge
+
 [forks-url]: https://github.com/RealAlexandreAI/json-repair/network/members
+
 [stars-shield]: https://img.shields.io/github/stars/RealAlexandreAI/json-repair.svg?style=for-the-badge
+
 [stars-url]: https://github.com/RealAlexandreAI/json-repair/stargazers
+
 [issues-shield]: https://img.shields.io/github/issues/RealAlexandreAI/json-repair.svg?style=for-the-badge
+
 [issues-url]: https://github.com/RealAlexandreAI/json-repair/issues
+
 [license-shield]: https://img.shields.io/github/license/RealAlexandreAI/json-repair.svg?style=for-the-badge
+
 [license-url]: https://github.com/RealAlexandreAI/json-repair/blob/master/LICENSE
+
 [product-screenshot]: images/screenshot.png

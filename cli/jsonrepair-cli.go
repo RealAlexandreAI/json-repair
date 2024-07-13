@@ -3,12 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-
 	"github.com/RealAlexandreAI/json-repair"
+	"os"
 )
 
-const AppVersion = "0.0.8"
+const AppVersion = "0.0.11"
 
 var (
 	versionFlag bool
@@ -52,16 +51,10 @@ func main() {
 		return
 	}
 
-	if input != "" {
+	switch {
+	case input != "":
 		fmt.Println(jsonrepair.MustRepairJSON(input))
-	}
-
-	if file != "" {
-
-		if input != "" {
-			fmt.Println("---")
-		}
-
+	case file != "":
 		fi, err := os.ReadFile(file)
 		if err != nil {
 			fmt.Printf("[json-repair] invalid file path: %s", file)
@@ -69,5 +62,8 @@ func main() {
 			return
 		}
 		fmt.Println(jsonrepair.MustRepairJSON(string(fi)))
+	default:
+		fmt.Println("{}")
 	}
+
 }
