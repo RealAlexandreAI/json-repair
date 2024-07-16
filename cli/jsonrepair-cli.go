@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-const AppVersion = "0.0.12"
+const AppVersion = "0.0.13"
 
 var (
 	versionFlag bool
