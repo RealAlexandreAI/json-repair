@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-const AppVersion = "0.0.11"
+const AppVersion = "0.0.12"
 
 var (
 	versionFlag bool
@@ -22,7 +22,7 @@ var (
 func init() {
 	flag.BoolVar(&versionFlag, "v", false, "Print version details")
 	flag.BoolVar(&helpFlag, "h", false, "Print help")
-	flag.StringVar(&input, "i", "{}", "String input inline")
+	flag.StringVar(&input, "i", "", "String input inline")
 	flag.StringVar(&file, "f", "", "File path")
 }
 
@@ -41,29 +41,33 @@ func printDefaults() {
 //
 //	@Description:
 func main() {
+	fmt.Print(cliInner())
+}
+
+// cliInner
+//
+//	Description:
+//	return string
+func cliInner() string {
 	flag.Parse()
 
 	if versionFlag {
-		fmt.Println("Version:", AppVersion)
-		return
+		return fmt.Sprintf("Version: %s", AppVersion)
 	} else if helpFlag {
 		printDefaults()
-		return
+		return ""
 	}
 
 	switch {
 	case input != "":
-		fmt.Println(jsonrepair.MustRepairJSON(input))
+		return jsonrepair.MustRepairJSON(input)
 	case file != "":
 		fi, err := os.ReadFile(file)
 		if err != nil {
-			fmt.Printf("[json-repair] invalid file path: %s", file)
-			fmt.Println()
-			return
+			return fmt.Sprintf("[json-repair] invalid file path: %s", file)
 		}
-		fmt.Println(jsonrepair.MustRepairJSON(string(fi)))
+		return jsonrepair.MustRepairJSON(string(fi))
 	default:
-		fmt.Println("{}")
+		return ""
 	}
-
 }
