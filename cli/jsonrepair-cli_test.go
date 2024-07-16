@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -107,7 +106,7 @@ func writeToTemp(input string) string {
 	fileName := fmt.Sprintf("employees_%s.json", timestamp)
 	filePath := filepath.Join(tempDir, fileName)
 	data := []byte(input)
-	err := ioutil.WriteFile(filePath, data, 0644)
+	err := os.WriteFile(filePath, data, 0644)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
 	}
