@@ -101,29 +101,35 @@ type JSONParser struct {
 //	receiver p
 //	return any
 func (p *JSONParser) parseJSON() any {
-	c, b := p.getByte(0)
-	if !b {
-		return ""
+
+	for {
+		c, b := p.getByte(0)
+
+		if !b {
+			return ""
+		}
+
+		isInMarkers := len(p.marker) > 0
+
+		switch {
+		case c == '{':
+			p.index++
+			return p.parseObject()
+		case c == '[':
+			p.index++
+			return p.parseArray()
+		case c == '}':
+			return ""
+		// TODO Full-width character support
+		case isInMarkers && (bytes.IndexByte([]byte{'"', '\''}, c) != -1 || unicode.IsLetter(rune(c))):
+			return p.parseString()
+		case isInMarkers && (unicode.IsNumber(rune(c)) || bytes.IndexByte([]byte{'-', '.'}, c) != -1):
+			return p.parseNumber()
+		}
+
+		p.index++
 	}
 
-	switch {
-	case c == '{':
-		p.index++
-		return p.parseObject()
-	case c == '[':
-		p.index++
-		return p.parseArray()
-	case c == '}':
-		return ""
-	// TODO Full-width character support
-	case bytes.IndexByte([]byte{'"', '\''}, c) != -1 || unicode.IsLetter(rune(c)):
-		return p.parseString()
-	case unicode.IsNumber(rune(c)) || bytes.IndexByte([]byte{'-', '.'}, c) != -1:
-		return p.parseNumber()
-	}
-
-	p.index++
-	return p.parseJSON()
 }
 
 // parseObject
@@ -166,10 +172,14 @@ func (p *JSONParser) parseObject() map[string]any {
 			}
 		}
 
+		p.skipWhitespaces()
+
 		c, b = p.getByte(0)
 		if b && c == '}' {
 			continue
 		}
+
+		p.skipWhitespaces()
 
 		c, b = p.getByte(0)
 		//nolint
@@ -226,7 +236,7 @@ func (p *JSONParser) parseArray() []any {
 		p.skipWhitespaces()
 		value := p.parseJSON()
 
-		if value == nil {
+		if value == nil || value == "" {
 			break
 		}
 
@@ -307,11 +317,6 @@ func (p *JSONParser) parseString() any {
 			}
 		}
 
-		if p.getMarker() == "" {
-			p.index++
-			return p.parseJSON()
-		}
-
 		missingQuotes = true
 	}
 
@@ -333,7 +338,17 @@ func (p *JSONParser) parseString() any {
 		if nextB && b && c == rStringDelimiter {
 			doubledQuotes = true
 			p.index++
+		} else {
+			i = 1
+			nextC, nextB = p.getByte(i)
+			for nextB && nextC == ' ' {
+				i++
+				nextC, nextB = p.getByte(i)
+			}
 
+			if nextB && bytes.IndexByte([]byte{',', ']', '}'}, nextC) == -1 {
+				p.index++
+			}
 		}
 	}
 
@@ -346,7 +361,33 @@ func (p *JSONParser) parseString() any {
 			if p.getMarker() == "object_key" && (c == ':' || unicode.IsSpace(rune(c))) {
 				break
 			} else if p.getMarker() == "object_value" && bytes.IndexByte([]byte{',', '}'}, c) != -1 {
-				break
+
+				rStringDelimiterMissing := true
+				i := 1
+				nextC, nextB := p.getByte(i)
+				for nextB && nextC != rStringDelimiter {
+					i++
+					nextC, nextB = p.getByte(i)
+				}
+
+				if nextB {
+					i++
+					nextC, nextB = p.getByte(i)
+				}
+
+				for nextB && nextC == ' ' {
+					i++
+					nextC, nextB = p.getByte(i)
+				}
+
+				if nextB && bytes.IndexByte([]byte{',', '}'}, nextC) != -1 {
+					rStringDelimiterMissing = false
+				}
+
+				if rStringDelimiterMissing {
+					break
+				}
+
 			}
 		}
 
@@ -383,16 +424,45 @@ func (p *JSONParser) parseString() any {
 
 			if doubledQuotes && p.container[p.index+1] == rStringDelimiter {
 
+			} else if missingQuotes && p.getMarker() == "object_value" {
+
+				i := 1
+				nextC, nextB := p.getByte(i)
+				for nextB && bytes.IndexByte([]byte{rStringDelimiter, lStringDelimiter}, nextC) == -1 {
+					i++
+					nextC, nextB = p.getByte(i)
+				}
+
+				if nextB {
+					i++
+					nextC, nextB = p.getByte(i)
+					for nextB && nextC == ' ' {
+						i++
+						nextC, nextB = p.getByte(i)
+					}
+
+					if nextB && nextC == ':' {
+						p.index--
+						c, b = p.getByte(0)
+						break
+					}
+				}
+
 			} else {
 
 				i := 1
 				nextC, nextB := p.getByte(i)
-				for nextB && nextC != rStringDelimiter {
+				checkCommaInObjectValue := true
+				for nextB && bytes.IndexByte([]byte{rStringDelimiter, lStringDelimiter}, nextC) == -1 {
 
-					if nextC == lStringDelimiter ||
-						(slices.Contains(p.marker, "object_key") && nextC == ':') ||
-						(slices.Contains(p.marker, "object_value") && bytes.IndexByte([]byte{'}', ','}, nextC) != -1) ||
-						(slices.Contains(p.marker, "array") && bytes.IndexByte([]byte{']', ','}, nextC) != -1) {
+					if unicode.IsLetter(rune(c)) {
+						checkCommaInObjectValue = false
+					}
+
+					if (slices.Contains(p.marker, "object_key") && bytes.IndexByte([]byte{':', '}'}, nextC) != -1) ||
+						(slices.Contains(p.marker, "object_value") && nextC == '}') ||
+						(slices.Contains(p.marker, "array") && bytes.IndexByte([]byte{']', ','}, nextC) != -1) ||
+						(checkCommaInObjectValue && p.getMarker() == "object_value" && nextC == ',') {
 						break
 					}
 
@@ -400,7 +470,7 @@ func (p *JSONParser) parseString() any {
 					nextC, nextB = p.getByte(i)
 				}
 
-				if nextC == rStringDelimiter {
+				if nextC == ',' && p.getMarker() == "object_value" {
 					i++
 					nextC, nextB = p.getByte(i)
 					for nextB && nextC != rStringDelimiter {
@@ -410,20 +480,43 @@ func (p *JSONParser) parseString() any {
 					i++
 					nextC, nextB = p.getByte(i)
 
-					for nextB && nextC != ':' {
-						if bytes.IndexByte([]byte{lStringDelimiter, rStringDelimiter, ','}, nextC) != -1 {
-							break
-						}
+					for nextB && nextC == ' ' {
 						i++
 						nextC, nextB = p.getByte(i)
 					}
 
-					// upstream
-					if !nextB || nextC != ':' {
+					if nextB && nextC == '}' {
 						rst = append(rst, c)
 						p.index++
 						c, b = p.getByte(0)
 					}
+				} else if nextB && nextC == rStringDelimiter {
+
+					if p.getMarker() == "object_value" {
+						i++
+						nextC, nextB = p.getByte(i)
+						for nextB && nextC != rStringDelimiter {
+							i++
+							nextC, nextB = p.getByte(i)
+						}
+						i++
+						nextC, nextB = p.getByte(i)
+						for nextB && nextC != ':' {
+							if bytes.IndexByte([]byte{',', lStringDelimiter, rStringDelimiter}, nextC) != -1 {
+								break
+							}
+							i++
+							nextC, nextB = p.getByte(i)
+						}
+
+						if nextC != ':' {
+							rst = append(rst, c)
+							p.index++
+							c, b = p.getByte(0)
+						}
+
+					}
+
 				}
 			}
 		}
@@ -462,7 +555,10 @@ func (p *JSONParser) parseNumber() any {
 
 	c, b = p.getByte(0)
 
-	for b && bytes.IndexByte(numberChars, c) != -1 {
+	isArray := p.getMarker() == "array"
+
+	for b && bytes.IndexByte(numberChars, c) != -1 &&
+		(c != ',' || !isArray) {
 		rst = append(rst, c)
 		p.index++
 		c, b = p.getByte(0)

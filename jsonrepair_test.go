@@ -142,12 +142,12 @@ func Test_RepairJSON(t *testing.T) {
 			want: `[]`,
 		},
 		{
-			in:   "'\"'",
-			want: `"\""`,
+			in:   `'\"'`,
+			want: `""`,
 		},
 		{
-			in:   "'string\"",
-			want: `"string\""`,
+			in:   "string",
+			want: `""`,
 		},
 		{
 			in:   `{foo: [}`,
@@ -290,6 +290,13 @@ func Test_RepairJSON(t *testing.T) {
 		{
 			in:   "```json{\"array_key\": [{\"item_key\": 1\n}], \"outer_key\": 2}```",
 			want: `{"array_key": [{"item_key": 1}], "outer_key": 2}`,
+		},
+
+		{
+			in: `[
+	{"Master""господин"}
+	]`,
+			want: `[{"Master":"господин"}]`,
 		},
 	}
 
