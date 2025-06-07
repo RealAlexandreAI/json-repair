@@ -234,3 +234,6 @@ Project Link: [https://github.com/RealAlexandreAI/json-repair](https://github.co
 [license-url]: https://github.com/RealAlexandreAI/json-repair/blob/master/LICENSE
 
 [product-screenshot]: images/screenshot.png
+
+
+[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
