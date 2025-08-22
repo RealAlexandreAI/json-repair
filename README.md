@@ -209,6 +209,12 @@ Project Link: [https://github.com/RealAlexandreAI/json-repair](https://github.co
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+## Sponsor
+
+CDN acceleration and security protection for this project are sponsored by Tencent EdgeOne. 
+
+![CDN acceleration and security protection for this project are sponsored by Tencent EdgeOne.](https://edgeone.ai/media/34fe3a45-492d-4ea4-ae5d-ea1087ca7b4b.png)
+
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
@@ -235,8 +241,3 @@ Project Link: [https://github.com/RealAlexandreAI/json-repair](https://github.co
 
 [product-screenshot]: images/screenshot.png
 
----
-
-CDN acceleration and security protection for this project are sponsored by Tencent EdgeOne. 
-
-![CDN acceleration and security protection for this project are sponsored by Tencent EdgeOne.](https://edgeone.ai/media/34fe3a45-492d-4ea4-ae5d-ea1087ca7b4b.png)
