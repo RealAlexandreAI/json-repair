@@ -234,3 +234,6 @@ Project Link: [https://github.com/RealAlexandreAI/json-repair](https://github.co
 [license-url]: https://github.com/RealAlexandreAI/json-repair/blob/master/LICENSE
 
 [product-screenshot]: images/screenshot.png
+
+
+![CDN acceleration and security protection for this project are sponsored by Tencent EdgeOne.](https://edgeone.ai/media/34fe3a45-492d-4ea4-ae5d-ea1087ca7b4b.png)
