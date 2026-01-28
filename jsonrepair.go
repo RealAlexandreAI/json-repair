@@ -215,9 +215,24 @@ func (p *JSONParser) parseObject() map[string]any {
 	return rst
 }
 
-// parseArray
+// parseArray parses a JSON array and handles malformed JSON where '}' is used
+// instead of ']' to close an array. This fixes the issue where fields after
+// the array were lost during repair.
 //
-//	Description:
+// Problem Example:
+//   Input:  {"items":[{"key":"value"}}}}],"size":50}
+//                              ^^^^
+//                              Extra '}' instead of ']'
+//   Before: {"items":[{"key":"value"}]}              // size lost!
+//   After:  {"items":[{"key":"value"}],"size":50}    // size preserved!
+//
+// Solution:
+// 1. When encountering '}' in array context, use lookahead to determine if
+//    it should end the array (treat '}' as ']') or continue parsing.
+// 2. Check following characters:
+//    - If '}' is followed by '}' or ']', treat as array end
+//    - If '}' is followed by ',' or '{', array should continue
+//
 //	receiver p
 //	return []any
 func (p *JSONParser) parseArray() []any {
