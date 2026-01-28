@@ -234,6 +234,56 @@ func (p *JSONParser) parseArray() []any {
 	for b && c != ']' {
 
 		p.skipWhitespaces()
+		
+		// Improvement: When encountering '}' in array context, determine if it should end the array
+		// This fixes errors like "...}}}}]," (extra '}' instead of ']')
+		c, b = p.getByte(0)
+		if b && c == '}' {
+			// Check if we are in an array context
+			isInArrayContext := false
+			for _, m := range p.marker {
+				if m == "array" {
+					isInArrayContext = true
+					break
+				}
+			}
+			if isInArrayContext {
+				// Lookahead to determine if this '}' should end the array
+				// If '}' is followed by '}]' or similar pattern, it might be array end
+				// If '}' is followed by ',{' or similar pattern, array should continue
+				shouldEndArray := false
+				lookahead := 1
+				for {
+					nextC, nextB := p.getByte(lookahead)
+					if !nextB {
+						break
+					}
+					if unicode.IsSpace(rune(nextC)) {
+						lookahead++
+						continue
+					}
+					// If '}' is followed by ',' or '{', array should continue
+					if nextC == ',' || nextC == '{' {
+						shouldEndArray = false
+						break
+					}
+					// If '}' is followed by '}' or ']', it might be array end
+					if nextC == '}' || nextC == ']' {
+						shouldEndArray = true
+						break
+					}
+					// Other characters (like string start "), array should continue
+					break
+				}
+				if shouldEndArray {
+					// Treat '}' as ']' and end the array
+					p.index++
+					p.resetMarker()
+					return rst
+				}
+			}
+		}
+		
 		value := p.parseJSON()
 
 		if value == nil || value == "" {
@@ -256,8 +306,24 @@ func (p *JSONParser) parseArray() []any {
 			c, b = p.getByte(0)
 		}
 
+		// Improvement: Only break due to '}' when not in array context
+		// Check marker stack, if 'array' marker exists, we are in array context and should not break
 		if p.getMarker() == "object_value" && c == '}' {
-			break
+			// Check if we are in an array context
+			isInArrayContext := false
+			for _, m := range p.marker {
+				if m == "array" {
+					isInArrayContext = true
+					break
+				}
+			}
+			// Only break when not in array context
+			if !isInArrayContext {
+				break
+			}
+			// In array context, skip '}' and continue parsing
+			p.index++
+			c, b = p.getByte(0)
 		}
 	}
 
