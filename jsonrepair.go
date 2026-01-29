@@ -39,8 +39,17 @@ func RepairJSON(src string) (dst string, err error) {
 	}
 
 	jp := NewJSONParser(src)
-	bs, err := JSONMarshal(jp.parseJSON())
+	result := jp.parseJSON()
+
+	// Try to marshal the result
+	bs, err := JSONMarshal(result)
+	if err != nil {
+		return "", err
+	}
 	dst = string(bs)
+
+	// If the result is valid JSON, trim it and only keep the valid part
+	dst = strings.TrimSpace(dst)
 	return
 }
 
@@ -90,10 +99,13 @@ func NewJSONParser(in string) *JSONParser {
 // JSONParser
 // Description:
 type JSONParser struct {
-	container string
-	index     int
-	marker    []string
+	container     string
+	index         int
+	marker        []string
+	recursionDepth int
 }
+
+const maxRecursionDepth = 1000
 
 // parseJSON
 //
@@ -101,12 +113,33 @@ type JSONParser struct {
 //	receiver p
 //	return any
 func (p *JSONParser) parseJSON() any {
+	// Prevent stack overflow by checking recursion depth
+	p.recursionDepth++
+	defer func() { p.recursionDepth-- }()
+
+	if p.recursionDepth > maxRecursionDepth {
+		return ""
+	}
+
+	startIndex := p.index
+	consecutiveNoProgress := 0
 
 	for {
 		c, b := p.getByte(0)
 
 		if !b {
 			return ""
+		}
+
+		// Detect infinite loop: if we haven't moved forward in several iterations
+		if p.index == startIndex {
+			consecutiveNoProgress++
+			if consecutiveNoProgress > 10 {
+				return ""
+			}
+		} else {
+			startIndex = p.index
+			consecutiveNoProgress = 0
 		}
 
 		isInMarkers := len(p.marker) > 0
@@ -341,12 +374,18 @@ func (p *JSONParser) parseString() any {
 		} else {
 			i = 1
 			nextC, nextB = p.getByte(i)
-			for nextB && nextC == ' ' {
+			// Skip all whitespace characters (space, newline, tab, etc.)
+			for nextB && unicode.IsSpace(rune(nextC)) {
 				i++
 				nextC, nextB = p.getByte(i)
 			}
 
-			if nextB && bytes.IndexByte([]byte{',', ']', '}'}, nextC) == -1 {
+			// Fix for Issue #19: properly handle empty strings followed by structural characters
+			if nextB && bytes.IndexByte([]byte{',', ']', '}'}, nextC) != -1 {
+				// This is an empty string, skip the closing quote and return
+				p.index++
+				return ""
+			} else if nextB && bytes.IndexByte([]byte{',', ']', '}'}, nextC) == -1 {
 				p.index++
 			}
 		}
@@ -421,6 +460,78 @@ func (p *JSONParser) parseString() any {
 		}
 
 		if c == rStringDelimiter {
+			// Special handling for unescaped quotes inside string values (Issue #18)
+			// Check if this quote is actually inside the string content
+			if !missingQuotes && p.getMarker() == "object_value" {
+				i := 1
+				nextC, nextB := p.getByte(i)
+
+				// Skip whitespace after the quote
+				for nextB && unicode.IsSpace(rune(nextC)) {
+					i++
+					nextC, nextB = p.getByte(i)
+				}
+
+				// Check if this is truly the end of the string
+				// A real string end should be followed by: , or } or ]
+				isFollowedByStructural := nextB && bytes.IndexByte([]byte{',', '}', ']'}, nextC) != -1
+
+				if !isFollowedByStructural {
+					// Not followed by structural character
+					// This is likely an unescaped quote inside the string
+					// Look ahead to find the next quote that IS followed by structural char
+					j := i
+					foundBetterEnd := false
+					for j < 200 {
+						nc, nb := p.getByte(j)
+						if !nb {
+							break
+						}
+						if nc == rStringDelimiter {
+							// Check what follows this quote
+							afterQuote, afterQuoteB := p.getByte(j + 1)
+							k := j + 1
+							for afterQuoteB && unicode.IsSpace(rune(afterQuote)) {
+								k++
+								afterQuote, afterQuoteB = p.getByte(k)
+							}
+							if afterQuoteB && bytes.IndexByte([]byte{',', '}', ']'}, afterQuote) != -1 {
+								// Found a quote followed by structural char
+								// But need to verify: if it's comma, what comes after?
+								if afterQuote == ',' {
+									// Check if after comma there's a proper key-value pair
+									// or if it's more string content
+									kk := k + 1
+									afterComma, afterCommaB := p.getByte(kk)
+									for afterCommaB && unicode.IsSpace(rune(afterComma)) {
+										kk++
+										afterComma, afterCommaB = p.getByte(kk)
+									}
+									// If after comma is NOT a quote (start of key), comma is part of content
+									if afterCommaB && afterComma != rStringDelimiter {
+										// Continue searching
+										j++
+										continue
+									}
+								}
+								// Found a better end
+								foundBetterEnd = true
+								break
+							}
+						}
+						j++
+					}
+
+					if foundBetterEnd {
+						// Continue reading, treating current quote as content
+						rst = append(rst, c)
+						p.index++
+						c, b = p.getByte(0)
+						continue
+					}
+				}
+				// If followed by structural char, or no better end found, treat as string end
+			}
 
 			if doubledQuotes && p.container[p.index+1] == rStringDelimiter {
 
@@ -571,7 +682,8 @@ func (p *JSONParser) parseNumber() any {
 
 	switch {
 	case len(rst) == 0:
-		return p.parseJSON()
+		// Avoid infinite recursion by returning empty string instead
+		return ""
 	case bytes.IndexByte(rst, ',') != -1:
 		return string(rst)
 	case bytes.IndexByte(rst, '.') != -1,
@@ -580,7 +692,8 @@ func (p *JSONParser) parseNumber() any {
 		r, _ := strconv.ParseFloat(string(rst), 32)
 		return r
 	case string(rst) == "-":
-		return p.parseJSON()
+		// Avoid infinite recursion by returning 0 instead
+		return 0
 	}
 
 	r, _ := strconv.Atoi(string(rst))

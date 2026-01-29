@@ -298,6 +298,21 @@ func Test_RepairJSON(t *testing.T) {
 	]`,
 			want: `[{"Master":"господин"}]`,
 		},
+		// Issue #19: Stack overflow with trailing invalid characters
+		{
+			in: `
+    {
+      "Be": "",
+      "gone": ""
+    }
+    ",п"г`,
+			want: `{"Be":"","gone":""}`,
+		},
+		// Issue #18: Unescaped quotes inside string values
+		{
+			in:   `{"name": "John is "good",hah", "age": 30}`,
+			want: `{"name":"John is \"good\",hah","age":30}`,
+		},
 	}
 
 	caseNo := 1
