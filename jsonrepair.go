@@ -540,7 +540,8 @@ func (p *JSONParser) parseString() any {
 		if c == rStringDelimiter {
 			// Special handling for unescaped quotes inside string values (Issue #18)
 			// Check if this quote is actually inside the string content
-			if !missingQuotes && p.getMarker() == "object_value" {
+			// Skip this logic if we're handling doubled quotes
+			if !missingQuotes && !doubledQuotes && p.getMarker() == "object_value" {
 				i := 1
 				nextC, nextB := p.getByte(i)
 
@@ -550,66 +551,115 @@ func (p *JSONParser) parseString() any {
 					nextC, nextB = p.getByte(i)
 				}
 
-				// Check if this is truly the end of the string
-				// A real string end should be followed by: , or } or ]
-				isFollowedByStructural := nextB && bytes.IndexByte([]byte{',', '}', ']'}, nextC) != -1
-
-				if !isFollowedByStructural {
-					// Not followed by structural character
-					// This is likely an unescaped quote inside the string
-					// Look ahead to find the next quote that IS followed by structural char
-					j := i
-					foundBetterEnd := false
-					for j < 200 {
-						nc, nb := p.getByte(j)
-						if !nb {
-							break
-						}
-						if nc == rStringDelimiter {
-							// Check what follows this quote
-							afterQuote, afterQuoteB := p.getByte(j + 1)
-							k := j + 1
-							for afterQuoteB && unicode.IsSpace(rune(afterQuote)) {
-								k++
-								afterQuote, afterQuoteB = p.getByte(k)
-							}
-							if afterQuoteB && bytes.IndexByte([]byte{',', '}', ']'}, afterQuote) != -1 {
-								// Found a quote followed by structural char
-								// But need to verify: if it's comma, what comes after?
-								if afterQuote == ',' {
-									// Check if after comma there's a proper key-value pair
-									// or if it's more string content
-									kk := k + 1
-									afterComma, afterCommaB := p.getByte(kk)
-									for afterCommaB && unicode.IsSpace(rune(afterComma)) {
-										kk++
-										afterComma, afterCommaB = p.getByte(kk)
-									}
-									// If after comma is NOT a quote (start of key), comma is part of content
-									if afterCommaB && afterComma != rStringDelimiter {
-										// Continue searching
-										j++
-										continue
-									}
-								}
-								// Found a better end
-								foundBetterEnd = true
+				// Quick check for simple normal case: quote + structural char
+				// For most cases, if quote is followed by , } ], it's the real end
+				// Only need complex logic if comma is NOT followed by quote
+				if nextB && bytes.IndexByte([]byte{',', '}', ']'}, nextC) != -1 {
+					if nextC == ',' {
+						// Check if comma followed by quote
+						checkIdx := i + 1
+						for {
+							checkCh, checkOk := p.getByte(checkIdx)
+							if !checkOk {
 								break
 							}
+							if unicode.IsSpace(rune(checkCh)) {
+								checkIdx++
+								continue
+							}
+							// If comma followed by quote, this is normal - don't interfere
+							if checkCh == rStringDelimiter {
+								goto skipIssue18Logic
+							}
+							// Comma not followed by quote, need complex logic
+							break
 						}
-						j++
-					}
-
-					if foundBetterEnd {
-						// Continue reading, treating current quote as content
-						rst = append(rst, c)
-						p.index++
-						c, b = p.getByte(0)
-						continue
+					} else {
+						// Followed by } or ], this is definitely the end - don't interfere
+						goto skipIssue18Logic
 					}
 				}
-				// If followed by structural char, or no better end found, treat as string end
+
+				// Collect all potential ending quotes (followed by structural chars)
+				type candidate struct {
+					pos       int
+					afterChar byte
+				}
+				var candidates []candidate
+
+				// Check current quote
+				if nextB && bytes.IndexByte([]byte{',', '}', ']'}, nextC) != -1 {
+					candidates = append(candidates, candidate{0, nextC})
+				}
+
+				// Scan forward for more potential endings
+				j := i
+				for j < 200 {
+					nc, nb := p.getByte(j)
+					if !nb {
+						break
+					}
+					if nc == rStringDelimiter {
+						afterQuote, afterQuoteB := p.getByte(j + 1)
+						k := j + 1
+						for afterQuoteB && unicode.IsSpace(rune(afterQuote)) {
+							k++
+							afterQuote, afterQuoteB = p.getByte(k)
+						}
+						if afterQuoteB && bytes.IndexByte([]byte{',', '}', ']'}, afterQuote) != -1 {
+							candidates = append(candidates, candidate{j, afterQuote})
+						}
+					}
+					j++
+				}
+
+				// Pick the best candidate
+				// Prefer: comma followed by quote (new key-value pair)
+				bestIdx := -1
+				for idx, cand := range candidates {
+					if cand.afterChar == ',' {
+						// Check what comes after comma
+						checkPos := cand.pos + 2
+						for {
+							checkCh, checkOk := p.getByte(checkPos)
+							if !checkOk {
+								break
+							}
+							if unicode.IsSpace(rune(checkCh)) {
+								checkPos++
+								continue
+							}
+							// If comma followed by quote, this is the real end
+							if checkCh == rStringDelimiter {
+								bestIdx = idx
+								break
+							}
+							// Not followed by quote
+							break
+						}
+						if bestIdx >= 0 {
+							break
+						}
+					} else if bestIdx < 0 {
+						// } or ] is also valid, use as fallback
+						bestIdx = idx
+					}
+				}
+
+				// If no good candidate, use first one
+				if bestIdx < 0 && len(candidates) > 0 {
+					bestIdx = 0
+				}
+
+				// If best candidate is not current quote, treat current as content
+				if bestIdx > 0 || (bestIdx == 0 && len(candidates) > 0 && candidates[0].pos != 0) {
+					rst = append(rst, c)
+					p.index++
+					c, b = p.getByte(0)
+					continue
+				}
 			}
+			skipIssue18Logic:
 
 			if doubledQuotes && p.container[p.index+1] == rStringDelimiter {
 
