@@ -313,6 +313,11 @@ func Test_RepairJSON(t *testing.T) {
 			in:   `{"name": "John is "good",hah", "age": 30}`,
 			want: `{"name":"John is \"good\",hah","age":30}`,
 		},
+		// PR #21: Extra '}' instead of ']' should not lose fields after array
+		{
+			in:   `{"items":[{"query":"smart phone","category":["smartphone"],"boost":{"tags":["flagship","5G","high-performance"],"ageGroup":"young_adult","gender":"male","brand":["Apple","Samsung","Google"],"price":{"min":800,"max":1500}},"filter":{"tags":["premium"],"gender":"male","brand":["Apple","Samsung","Google"],"price":{"min":800}}}}],"size":50}`,
+			want: `{"items":[{"boost":{"ageGroup":"young_adult","brand":["Apple","Samsung","Google"],"gender":"male","price":{"max":1500,"min":800},"tags":["flagship","5G","high-performance"]},"category":["smartphone"],"filter":{"brand":["Apple","Samsung","Google"],"gender":"male","price":{"min":800},"tags":["premium"]},"query":"smart phone"}],"size":50}`,
+		},
 	}
 
 	caseNo := 1

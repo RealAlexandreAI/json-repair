@@ -248,9 +248,24 @@ func (p *JSONParser) parseObject() map[string]any {
 	return rst
 }
 
-// parseArray
+// parseArray parses a JSON array and handles malformed JSON where '}' is used
+// instead of ']' to close an array. This fixes the issue where fields after
+// the array were lost during repair.
 //
-//	Description:
+// Problem Example:
+//   Input:  {"items":[{"key":"value"}}}}],"size":50}
+//                              ^^^^
+//                              Extra '}' instead of ']'
+//   Before: {"items":[{"key":"value"}]}              // size lost!
+//   After:  {"items":[{"key":"value"}],"size":50}    // size preserved!
+//
+// Solution:
+// 1. When encountering '}' in array context, use lookahead to determine if
+//    it should end the array (treat '}' as ']') or continue parsing.
+// 2. Check following characters:
+//    - If '}' is followed by '}' or ']', treat as array end
+//    - If '}' is followed by ',' or '{', array should continue
+//
 //	receiver p
 //	return []any
 func (p *JSONParser) parseArray() []any {
@@ -267,6 +282,54 @@ func (p *JSONParser) parseArray() []any {
 	for b && c != ']' {
 
 		p.skipWhitespaces()
+
+		// PR #21: When encountering '}' in array context, determine if it should end the array
+		// This fixes errors like "...}}}}]," (extra '}' instead of ']')
+		c, b = p.getByte(0)
+		if b && c == '}' {
+			// Check if we are in an array context
+			isInArrayContext := false
+			for _, m := range p.marker {
+				if m == "array" {
+					isInArrayContext = true
+					break
+				}
+			}
+			if isInArrayContext {
+				// Lookahead to determine if this '}' should end the array
+				shouldEndArray := false
+				lookahead := 1
+				for {
+					nextC, nextB := p.getByte(lookahead)
+					if !nextB {
+						break
+					}
+					if unicode.IsSpace(rune(nextC)) {
+						lookahead++
+						continue
+					}
+					// If '}' is followed by ',' or '{', array should continue
+					if nextC == ',' || nextC == '{' {
+						shouldEndArray = false
+						break
+					}
+					// If '}' is followed by '}' or ']', it might be array end
+					if nextC == '}' || nextC == ']' {
+						shouldEndArray = true
+						break
+					}
+					// Other characters (like string start "), array should continue
+					break
+				}
+				if shouldEndArray {
+					// Treat '}' as ']' and end the array
+					p.index++
+					p.resetMarker()
+					return rst
+				}
+			}
+		}
+
 		value := p.parseJSON()
 
 		if value == nil || value == "" {
@@ -289,8 +352,23 @@ func (p *JSONParser) parseArray() []any {
 			c, b = p.getByte(0)
 		}
 
+		// PR #21: Only break due to '}' when not in array context
 		if p.getMarker() == "object_value" && c == '}' {
-			break
+			// Check if we are in an array context
+			isInArrayContext := false
+			for _, m := range p.marker {
+				if m == "array" {
+					isInArrayContext = true
+					break
+				}
+			}
+			// Only break when not in array context
+			if !isInArrayContext {
+				break
+			}
+			// In array context, skip '}' and continue parsing
+			p.index++
+			c, b = p.getByte(0)
 		}
 	}
 
