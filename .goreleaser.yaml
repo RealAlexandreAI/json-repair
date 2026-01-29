@@ -28,6 +28,7 @@ builds:
     ldflags:
       - -s
       - -w
+      - -X main.version={{.Version}}
     main: ./cli
 archives:
   - format: tar.gz

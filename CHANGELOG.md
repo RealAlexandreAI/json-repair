@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.0.15
+
+- Fix version synchronization between CLI and Git tag using ldflags.
+
 ## v0.0.8
 
 - More test cases.

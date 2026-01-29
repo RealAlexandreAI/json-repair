@@ -7,7 +7,9 @@ import (
 	"os"
 )
 
-const AppVersion = "0.0.14"
+// 通过 ldflags 在构建时注入版本号
+// go build -ldflags "-X main.version=x.x.x"
+var version string
 
 var (
 	versionFlag bool
@@ -52,7 +54,10 @@ func cliInner() string {
 	flag.Parse()
 
 	if versionFlag {
-		return fmt.Sprintf("Version: %s", AppVersion)
+		if version == "" {
+			version = "dev"
+		}
+		return fmt.Sprintf("Version: %s", version)
 	} else if helpFlag {
 		printDefaults()
 		return ""
