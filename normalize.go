@@ -86,11 +86,6 @@ func isSmartSingleQuote(r rune) bool {
 		r == '\uff07'   // ＇ FULLWIDTH APOSTROPHE
 }
 
-// isSmartQuote returns true if the rune is any kind of smart/typographic quote.
-func isSmartQuote(r rune) bool {
-	return isSmartDoubleQuote(r) || isSmartSingleQuote(r)
-}
-
 // asciiQuoteForSmart maps a smart quote rune to its ASCII equivalent byte.
 // Returns 0 if the rune is not a smart quote.
 func asciiQuoteForSmart(r rune) byte {
