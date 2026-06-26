@@ -157,7 +157,10 @@ the [Releases](https://github.com/RealAlexandreAI/json-repair/releases)._
 - [x] Terminal CLI support
 - [x] Workflow and GitHub Action
 - [x] Add Homebrew tap
-- [ ] Support Full-width character detection
+- [x] Support Full-width character detection
+- [x] Smart/curly quote support
+- [x] Multiple top-level JSON values
+- [x] Duplicate key deduplication
 
 See the [open issues](https://github.com/RealAlexandreAI/json-repair/issues) for a full list of proposed features (and
 known issues).
