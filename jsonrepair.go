@@ -156,7 +156,7 @@ func (p *JSONParser) parseJSON() any {
 		// TODO Full-width character support
 		case isInMarkers && (bytes.IndexByte([]byte{'"', '\''}, c) != -1 || unicode.IsLetter(rune(c))):
 			return p.parseString()
-		case isInMarkers && (unicode.IsNumber(rune(c)) || bytes.IndexByte([]byte{'-', '.'}, c) != -1):
+		case isInMarkers && isASCIIDigitOrSign(c):
 			return p.parseNumber()
 		}
 
@@ -779,6 +779,14 @@ func (p *JSONParser) parseString() any {
 	return strings.TrimRightFunc(string(rst), unicode.IsSpace)
 }
 
+// isASCIIDigitOrSign returns true for bytes that parseNumber actually accepts:
+// ASCII digits, minus sign, and decimal point. Avoids routing Unicode
+// number-category bytes (e.g. 0xB2 '²') into parseNumber where they
+// cannot be consumed and would cause infinite recursion (issue #23).
+func isASCIIDigitOrSign(c byte) bool {
+	return (c >= '0' && c <= '9') || c == '-' || c == '.'
+}
+
 // parseNumber
 //
 //	Description:
@@ -810,7 +818,9 @@ func (p *JSONParser) parseNumber() any {
 
 	switch {
 	case len(rst) == 0:
-		// Avoid infinite recursion by returning empty string instead
+		// Nothing consumed — advance past this byte so parseJSON makes progress
+		// instead of looping back here forever (issue #23).
+		p.index++
 		return ""
 	case bytes.IndexByte(rst, ',') != -1:
 		return string(rst)
