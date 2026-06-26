@@ -467,7 +467,6 @@ func (p *JSONParser) parseString() any {
 		lStringDelimiter = p.rstringDelimiter
 		rStringDelimiter = p.rstringDelimiter
 		p.rstringDelimiter = 0
-		c, b = p.getByte(0)
 	} else {
 		c, b = p.getByte(0)
 		for b && !isQuoteByte(c) && !unicode.IsLetter(rune(c)) && !isSmartQuoteAt(p.container, p.index, 0) {
