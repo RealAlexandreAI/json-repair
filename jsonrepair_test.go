@@ -335,6 +335,74 @@ func Test_RepairJSON(t *testing.T) {
 			in:   "[\xbc]",
 			want: `[]`,
 		},
+		// Smart/curly double quotes
+		{
+			in:   "{\u201ckey\u201d: \u201cvalue\u201d}",
+			want: `{"key":"value"}`,
+		},
+		// Smart/curly single quotes
+		{
+			in:   "{\u2018key\u2019: \u2018value\u2019}",
+			want: `{"key":"value"}`,
+		},
+		// Full-width quotes
+		{
+			in:   "{\uff02key\uff02: \uff02value\uff02}",
+			want: `{"key":"value"}`,
+		},
+		// Mixed ASCII and curly quotes
+		{
+			in:   "{\u201ckey\": \"value\u201d}",
+			want: `{"key":"value"}`,
+		},
+		// German low-9 quotes
+		{
+			in:   "{\u201ekey\u201c: \u201cvalue\u201d}",
+			want: `{"key":"value"}`,
+		},
+		// Chinese LLM output with full-width punctuation
+		{
+			in:   "\uff5b\uff02key\uff02\uff1a\uff02value\uff02\uff5d",
+			want: `{"key":"value"}`,
+		},
+		// Smart quotes in array
+		{
+			in:   "[\u201citem1\u201d, \u201citem2\u201d]",
+			want: `["item1","item2"]`,
+		},
+		// Upstream: multiple JSON values (test_multiple_jsons)
+		{
+			in:   `[]`,
+			want: `[]`,
+		},
+		{
+			in:   `{"key":"value"}[1,2,3,true]`,
+			want: `[{"key":"value"},[1,2,3,true]]`,
+		},
+		// Upstream: mixed quotes (test_missing_and_mixed_quotes)
+		{
+			in:   `{"key": ""value"}`,
+			want: `{"key":"value"}`,
+		},
+		{
+			in:   `{"key": value , }`,
+			want: `{"key":"value"}`,
+		},
+		// Upstream: code fence in string (test_string_json_llm_block)
+		{
+			in:   "```json{\"key\": [\"item1\", \"item2\"]}```",
+			want: `{"key":["item1","item2"]}`,
+		},
+		// Upstream: leading/trailing characters (test_leading_trailing_characters)
+		{
+			in:   "````{ \"key\": \"value\" }```",
+			want: `{"key":"value"}`,
+		},
+		// Upstream: duplicate keys in object
+		{
+			in:   `{"key":"value","key":"value2"}`,
+			want: `{"key":"value2"}`,
+		},
 	}
 
 	caseNo := 1

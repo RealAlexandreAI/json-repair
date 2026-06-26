@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // RepairJSON
@@ -26,8 +27,7 @@ func RepairJSON(src string) (dst string, err error) {
 		}
 	}()
 
-	src = strings.TrimSpace(src)
-	src = strings.TrimPrefix(src, "```json")
+	src = normalizeInput(src)
 
 	if json.Valid([]byte(src)) {
 		buf := &bytes.Buffer{}
@@ -40,6 +40,7 @@ func RepairJSON(src string) (dst string, err error) {
 
 	jp := NewJSONParser(src)
 	result := jp.parseJSON()
+	result = jp.collectMultipleTopLevel(result)
 
 	// Try to marshal the result
 	bs, err := JSONMarshal(result)
@@ -66,8 +67,7 @@ func MustRepairJSON(src string) (dst string) {
 		}
 	}()
 
-	src = strings.TrimSpace(src)
-	src = strings.TrimPrefix(src, "```json")
+	src = normalizeInput(src)
 
 	if json.Valid([]byte(src)) {
 		buf := &bytes.Buffer{}
@@ -78,9 +78,44 @@ func MustRepairJSON(src string) (dst string) {
 	}
 
 	jp := NewJSONParser(src)
-	bs, _ := JSONMarshal(jp.parseJSON())
+	result := jp.parseJSON()
+	result = jp.collectMultipleTopLevel(result)
+	bs, _ := JSONMarshal(result)
 	dst = string(bs)
 	return
+}
+
+// collectMultipleTopLevel handles multiple sequential JSON values (upstream _parse_top_level).
+// If there are remaining elements after the first, they are collected into an array.
+func (p *JSONParser) collectMultipleTopLevel(result any) any {
+	if p.index >= len(p.container) {
+		return result
+	}
+	elements := []any{result}
+	for p.index < len(p.container) {
+		p.skipWhitespaces()
+		c, b := p.getByte(0)
+		if b && c == ',' {
+			p.index++
+		}
+		p.skipWhitespaces()
+		c, b = p.getByte(0)
+		if !b {
+			break
+		}
+		if c == '{' || c == '[' || c == '"' || c == '\'' || (c >= '0' && c <= '9') || c == '-' || c == '.' {
+			elem := p.parseJSON()
+			if elem != nil && elem != "" {
+				elements = append(elements, elem)
+			}
+		} else {
+			p.index++
+		}
+	}
+	if len(elements) > 1 {
+		return elements
+	}
+	return result
 }
 
 // NewJSONParser
@@ -99,10 +134,11 @@ func NewJSONParser(in string) *JSONParser {
 // JSONParser
 // Description:
 type JSONParser struct {
-	container     string
-	index         int
-	marker        []string
-	recursionDepth int
+	container        string
+	index            int
+	marker           []string
+	recursionDepth   int
+	rstringDelimiter byte
 }
 
 const maxRecursionDepth = 1000
@@ -144,6 +180,16 @@ func (p *JSONParser) parseJSON() any {
 
 		isInMarkers := len(p.marker) > 0
 
+		// Smart quote dispatch — must check rune before ASCII-byte switch since getByte returns only first byte
+		if isInMarkers {
+			if asciiQuote, ok := getSmartQuoteByteAt(p.container, p.index, 0); ok {
+				_, sz := utf8.DecodeRuneInString(p.container[p.index:])
+				p.index += sz
+				p.rstringDelimiter = asciiQuote
+				return p.parseString()
+			}
+		}
+
 		switch {
 		case c == '{':
 			p.index++
@@ -153,7 +199,6 @@ func (p *JSONParser) parseJSON() any {
 			return p.parseArray()
 		case c == '}':
 			return ""
-		// TODO Full-width character support
 		case isInMarkers && (bytes.IndexByte([]byte{'"', '\''}, c) != -1 || unicode.IsLetter(rune(c))):
 			return p.parseString()
 		case isInMarkers && isASCIIDigitOrSign(c):
@@ -173,6 +218,7 @@ func (p *JSONParser) parseJSON() any {
 func (p *JSONParser) parseObject() map[string]any {
 
 	rst := make(map[string]any)
+	seenKeys := make(map[string]bool)
 
 	var c byte
 	var b bool
@@ -186,6 +232,9 @@ func (p *JSONParser) parseObject() map[string]any {
 		if b && c == ':' {
 			p.index++
 		}
+
+		// Save rollback position for duplicate key detection
+		rollbackIndex := p.index
 
 		p.setMarker("object_key")
 		p.skipWhitespaces()
@@ -203,6 +252,20 @@ func (p *JSONParser) parseObject() map[string]any {
 			} else if key == "" && p.index == currentIndex {
 				p.index++
 			}
+		}
+
+		// Duplicate key handling: split object on non-comma-separated duplicates
+		if key != "" && seenKeys[key] {
+			// Check if the key was comma-separated (prev non-ws is ',' and next non-ws is ':')
+			shouldSplit := !p.isCommaSeparatedKey(rollbackIndex)
+			if shouldSplit {
+				p.index = rollbackIndex - 1
+				break
+			}
+			// comma-separated duplicate: standard overwrite behavior, continue
+		}
+		if key != "" {
+			seenKeys[key] = true
 		}
 
 		p.skipWhitespaces()
@@ -399,40 +462,65 @@ func (p *JSONParser) parseString() any {
 	var c byte
 	var b bool
 
-	c, b = p.getByte(0)
-	for b && bytes.IndexByte([]byte{'"', '\''}, c) == -1 && !unicode.IsLetter(rune(c)) {
-		p.index++
+	// If delimiter was set by caller (parseJSON for smart quotes), use it directly
+	if p.rstringDelimiter != 0 {
+		lStringDelimiter = p.rstringDelimiter
+		rStringDelimiter = p.rstringDelimiter
+		p.rstringDelimiter = 0
 		c, b = p.getByte(0)
-	}
-
-	if !b {
-		return ""
-	}
-
-	switch {
-	case c == '\'':
-
-		lStringDelimiter = '\''
-		rStringDelimiter = '\''
-	case unicode.IsLetter(rune(c)):
-
-		if bytes.IndexByte([]byte{'t', 'f', 'n'}, byte(unicode.ToLower(rune(c)))) != -1 &&
-			p.getMarker() != "object_key" {
-			value := p.parseBooleanOrNull()
-			if vs, ok := value.(string); !ok {
-				return value
-			} else {
-				if vs != "" {
-					return vs
-				}
-			}
+	} else {
+		c, b = p.getByte(0)
+		for b && !isQuoteByte(c) && !unicode.IsLetter(rune(c)) && !isSmartQuoteAt(p.container, p.index, 0) {
+			p.index++
+			c, b = p.getByte(0)
 		}
 
-		missingQuotes = true
+		if !b {
+			return ""
+		}
+
+		// Handle smart/typographic quotes — detect before switch since getByte returns first byte only
+		smartQuoteHandled := false
+		if asciiQuote, ok := getSmartQuoteByteAt(p.container, p.index, 0); ok {
+			_, sz := utf8.DecodeRuneInString(p.container[p.index:])
+			p.index += sz
+			rStringDelimiter = asciiQuote
+			lStringDelimiter = asciiQuote
+			smartQuoteHandled = true
+		}
+
+		switch {
+		case c == '\'':
+
+			lStringDelimiter = '\''
+			rStringDelimiter = '\''
+		case unicode.IsLetter(rune(c)):
+
+			if bytes.IndexByte([]byte{'t', 'f', 'n'}, byte(unicode.ToLower(rune(c)))) != -1 &&
+				p.getMarker() != "object_key" {
+				value := p.parseBooleanOrNull()
+				if vs, ok := value.(string); !ok {
+					return value
+				} else {
+					if vs != "" {
+						return vs
+					}
+				}
+			}
+
+			missingQuotes = true
+		}
+
+		if !missingQuotes && !smartQuoteHandled {
+			p.index++
+		}
 	}
 
-	if !missingQuotes {
-		p.index++
+	// Check for code fence block (```json ... ```) inside a string value
+	if c, b := p.getByte(0); b && c == '`' {
+		if val := p.parseJSONLLMBlock(); val != nil {
+			return val
+		}
 	}
 
 	c, b = p.getByte(0)
@@ -474,6 +562,13 @@ func (p *JSONParser) parseString() any {
 	c, b = p.getByte(0)
 
 	for b && c != rStringDelimiter {
+		// Position 4: Check for smart/typographic quote that matches closing delimiter
+		if smartMatch, ok := getSmartQuoteByteAt(p.container, p.index, 0); ok && smartMatch == rStringDelimiter {
+			_, sz := utf8.DecodeRuneInString(p.container[p.index:])
+			p.index += sz
+			break
+		}
+
 		if missingQuotes {
 			if p.getMarker() == "object_key" && (c == ':' || unicode.IsSpace(rune(c))) {
 				break
@@ -787,6 +882,20 @@ func isASCIIDigitOrSign(c byte) bool {
 	return (c >= '0' && c <= '9') || c == '-' || c == '.'
 }
 
+// isCommaSeparatedKey checks if the key at rollbackIndex was preceded by a comma
+// (meaning it's a normal comma-separated duplicate, not a split-worthy duplicate).
+func (p *JSONParser) isCommaSeparatedKey(rollbackIndex int) bool {
+	idx := rollbackIndex - 1
+	for idx >= 0 {
+		c := p.container[idx]
+		if !unicode.IsSpace(rune(c)) {
+			return c == ','
+		}
+		idx--
+	}
+	return false
+}
+
 // parseNumber
 //
 //	Description:
@@ -895,6 +1004,29 @@ func (p *JSONParser) parseBooleanOrNull() any {
 
 	p.index = startingIndex
 	return ""
+}
+
+// parseJSONLLMBlock attempts to parse a ```json ... ``` code fence block.
+// Returns the parsed JSON value if successful, or nil if not a valid code fence.
+func (p *JSONParser) parseJSONLLMBlock() any {
+	// Check for ```json prefix (7 bytes)
+	if p.index+7 > len(p.container) {
+		return nil
+	}
+	if p.container[p.index:p.index+7] != "```json" {
+		return nil
+	}
+	// Find closing ```
+	i := p.index + 7
+	for i+3 <= len(p.container) {
+		if p.container[i] == '`' && p.container[i+1] == '`' && p.container[i+2] == '`' {
+			p.index = i + 3
+			p.skipWhitespaces()
+			return p.parseJSON()
+		}
+		i++
+	}
+	return nil
 }
 
 // currentChar

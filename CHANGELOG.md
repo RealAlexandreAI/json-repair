@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## v0.0.16
+
+### New Features
+
+- Smart/curly quote support: `\u201c`, `\u201d`, `\u201e`, `\u2018`, `\u2019`, `\uff02`, `\uff07` (Chinese LLM full-width quotes).
+- Full-width punctuation normalization: `｛｝［］：，；` → ASCII equivalents.
+- Code fence handling: `` ```json ... ``` `` blocks stripped and parsed.
+- Comment stripping: `//`, `/* */`, `#` comments removed from input.
+- Multiple top-level JSON values collected into an array.
+- Duplicate key deduplication: non-comma-separated duplicates split into separate objects.
+- Code fence within string values: `` ```json ... ``` `` inside strings parsed as JSON.
+
+### Bug Fixes
+
+- Fixed infinite recursion on Unicode number bytes (issue #23).
+- Fixed `stripComments` breaking strings with unescaped quotes (Issue #18 regression).
+- Fixed `normalizePunctuation` corrupting invalid UTF-8 bytes.
+- Fixed smart quote parsing skipping characters with double index increment.
+
+### Improvements
+
+- Ported upstream Python `json_repair` v0.61.0 features to Go.
+- 80 test cases (up from 66), all passing.
+
 ## v0.0.15
 
 - Fix version synchronization between CLI and Git tag using ldflags.
