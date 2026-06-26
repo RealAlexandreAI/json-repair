@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v0.0.17
+
+- Fix lint: remove unused `isSmartQuote`, fix ineffectual assignment.
+- Upgrade CI: goreleaser v2, actions v6, Go 1.23.
+
 ## v0.0.16
 
 ### New Features
