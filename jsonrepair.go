@@ -3,8 +3,7 @@ package jsonrepair
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"runtime/debug"
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -19,39 +18,8 @@ import (
 //	@return dst
 //	@return err
 func RepairJSON(src string) (dst string, err error) {
-	defer func() {
-		if errR := recover(); errR != nil {
-			stack := string(debug.Stack())
-			err = fmt.Errorf("repair json panic: %s", stack)
-			return
-		}
-	}()
-
-	src = normalizeInput(src)
-
-	if json.Valid([]byte(src)) {
-		buf := &bytes.Buffer{}
-		if err = json.Compact(buf, []byte(src)); err != nil {
-			return "", err
-		}
-		dst = buf.String()
-		return
-	}
-
-	jp := NewJSONParser(src)
-	result := jp.parseJSON()
-	result = jp.collectMultipleTopLevel(result)
-
-	// Try to marshal the result
-	bs, err := JSONMarshal(result)
-	if err != nil {
-		return "", err
-	}
-	dst = string(bs)
-
-	// If the result is valid JSON, trim it and only keep the valid part
-	dst = strings.TrimSpace(dst)
-	return
+	result, err := RepairWithOptions(src, RepairOptions{})
+	return result.JSON, err
 }
 
 // MustRepairJSON
@@ -60,34 +28,17 @@ func RepairJSON(src string) (dst string, err error) {
 //	@param src
 //	@return dst
 func MustRepairJSON(src string) (dst string) {
-	defer func() {
-		if errR := recover(); errR != nil {
-			dst = ""
-			return
-		}
-	}()
-
-	src = normalizeInput(src)
-
-	if json.Valid([]byte(src)) {
-		buf := &bytes.Buffer{}
-		//nolint
-		json.Compact(buf, []byte(src))
-		dst = buf.String()
-		return
+	result, err := RepairWithOptions(src, RepairOptions{})
+	if err != nil {
+		return ""
 	}
-
-	jp := NewJSONParser(src)
-	result := jp.parseJSON()
-	result = jp.collectMultipleTopLevel(result)
-	bs, _ := JSONMarshal(result)
-	dst = string(bs)
-	return
+	return result.JSON
 }
 
 // collectMultipleTopLevel handles multiple sequential JSON values (upstream _parse_top_level).
 // If there are remaining elements after the first, they are collected into an array.
 func (p *JSONParser) collectMultipleTopLevel(result any) any {
+	p.topLevelValues = []any{result}
 	if p.index >= len(p.container) {
 		return result
 	}
@@ -103,6 +54,10 @@ func (p *JSONParser) collectMultipleTopLevel(result any) any {
 		if !b {
 			break
 		}
+		if p.strict {
+			p.fail("multiple top-level JSON elements found in strict mode")
+			break
+		}
 		if c == '{' || c == '[' || c == '"' || c == '\'' || (c >= '0' && c <= '9') || c == '-' || c == '.' {
 			elem := p.parseJSON()
 			if elem != nil && elem != "" {
@@ -112,6 +67,7 @@ func (p *JSONParser) collectMultipleTopLevel(result any) any {
 			p.index++
 		}
 	}
+	p.topLevelValues = elements
 	if len(elements) > 1 {
 		return elements
 	}
@@ -124,10 +80,24 @@ func (p *JSONParser) collectMultipleTopLevel(result any) any {
 //	param in
 //	return *JSONParser
 func NewJSONParser(in string) *JSONParser {
+	return newJSONParser(in, parserOptions{})
+}
+
+type parserOptions struct {
+	logging      bool
+	streamStable bool
+	strict       bool
+}
+
+func newJSONParser(in string, options parserOptions) *JSONParser {
 	return &JSONParser{
-		container: in,
-		index:     0,
-		marker:    []string{},
+		container:    in,
+		index:        0,
+		marker:       []string{},
+		logging:      options.logging,
+		streamStable: options.streamStable,
+		strict:       options.strict,
+		logger:       []RepairLogEntry{},
 	}
 }
 
@@ -139,6 +109,40 @@ type JSONParser struct {
 	marker           []string
 	recursionDepth   int
 	rstringDelimiter byte
+	logging          bool
+	streamStable     bool
+	strict           bool
+	logger           []RepairLogEntry
+	err              error
+	topLevelValues   []any
+}
+
+func (p *JSONParser) log(text string) {
+	if !p.logging {
+		return
+	}
+	start := p.index - 10
+	if start < 0 {
+		start = 0
+	}
+	if start > len(p.container) {
+		start = len(p.container)
+	}
+	end := p.index + 10
+	if end > len(p.container) {
+		end = len(p.container)
+	}
+	if end < start {
+		end = start
+	}
+	p.logger = append(p.logger, RepairLogEntry{Text: text, Context: p.container[start:end]})
+}
+
+func (p *JSONParser) fail(text string) {
+	if p.err == nil {
+		p.err = errors.New(text)
+	}
+	p.log(text)
 }
 
 const maxRecursionDepth = 1000
@@ -154,6 +158,7 @@ func (p *JSONParser) parseJSON() any {
 	defer func() { p.recursionDepth-- }()
 
 	if p.recursionDepth > maxRecursionDepth {
+		p.fail("input nesting exceeds the supported parser recursion depth")
 		return ""
 	}
 
@@ -191,6 +196,8 @@ func (p *JSONParser) parseJSON() any {
 		}
 
 		switch {
+		case c == '(' && (isInMarkers || p.parenthesizedCanStartValue()):
+			return p.parseParenthesized()
 		case c == '{':
 			p.index++
 			return p.parseObject()
@@ -199,6 +206,12 @@ func (p *JSONParser) parseJSON() any {
 			return p.parseArray()
 		case c == '}':
 			return ""
+		case !isInMarkers && p.index == 0 && c == '"':
+			return p.parseString()
+		case !isInMarkers && p.index == 0 && p.topLevelNumberCanStart(c):
+			return p.parseNumber()
+		case !isInMarkers && p.index == 0 && bytes.IndexByte([]byte{'t', 'f', 'n'}, byte(unicode.ToLower(rune(c)))) != -1:
+			return p.parseString()
 		case isInMarkers && (bytes.IndexByte([]byte{'"', '\''}, c) != -1 || unicode.IsLetter(rune(c))):
 			return p.parseString()
 		case isInMarkers && isASCIIDigitOrSign(c):
@@ -208,6 +221,52 @@ func (p *JSONParser) parseJSON() any {
 		p.index++
 	}
 
+}
+
+func (p *JSONParser) parseParenthesized() any {
+	p.index++
+	values := p.parseArrayUntil(')')
+	if len(values) == 1 {
+		return values[0]
+	}
+	return values
+}
+
+func (p *JSONParser) parenthesizedCanStartValue() bool {
+	offset := 1
+	for {
+		c, ok := p.getByte(offset)
+		if !ok || !unicode.IsSpace(rune(c)) {
+			break
+		}
+		offset++
+	}
+	c, ok := p.getByte(offset)
+	if !ok {
+		return false
+	}
+	return isASCIIDigitOrSign(c) || c == '{' || c == '[' || c == '"' || c == '\'' || unicode.IsLetter(rune(c))
+}
+
+func (p *JSONParser) topLevelNumberCanStart(c byte) bool {
+	if c >= '0' && c <= '9' {
+		return true
+	}
+	if c == '.' {
+		next, ok := p.getByte(1)
+		return ok && next >= '0' && next <= '9'
+	}
+	if c != '-' {
+		return false
+	}
+	offset := 1
+	for {
+		next, ok := p.getByte(offset)
+		if !ok || !unicode.IsSpace(rune(next)) {
+			return ok && ((next >= '0' && next <= '9') || next == '.')
+		}
+		offset++
+	}
 }
 
 // parseObject
@@ -244,6 +303,14 @@ func (p *JSONParser) parseObject() map[string]any {
 		for key == "" && b {
 			currentIndex := p.index
 			key = p.parseString().(string)
+			if key == "" && p.strict {
+				previous, hasPrevious := p.getByte(-1)
+				if hasPrevious && isQuoteByte(previous) {
+					p.fail("empty key found in strict mode")
+					p.resetMarker()
+					return rst
+				}
+			}
 
 			c, b = p.getByte(0)
 			if key == "" && b && c == ':' {
@@ -256,13 +323,24 @@ func (p *JSONParser) parseObject() map[string]any {
 
 		// Duplicate key handling: split object on non-comma-separated duplicates
 		if key != "" && seenKeys[key] {
+			if p.strict {
+				p.fail("duplicate key found in strict mode")
+				p.resetMarker()
+				return rst
+			}
 			// Check if the key was comma-separated (prev non-ws is ',' and next non-ws is ':')
 			shouldSplit := !p.isCommaSeparatedKey(rollbackIndex)
 			if shouldSplit {
 				p.index = rollbackIndex - 1
 				break
 			}
+			p.log("duplicate key found with a normal comma separator; keeping overwrite behavior")
 			// comma-separated duplicate: standard overwrite behavior, continue
+		}
+		if key == "" && p.strict {
+			p.fail("empty key found in strict mode")
+			p.resetMarker()
+			return rst
 		}
 		if key != "" {
 			seenKeys[key] = true
@@ -278,16 +356,37 @@ func (p *JSONParser) parseObject() map[string]any {
 		p.skipWhitespaces()
 
 		c, b = p.getByte(0)
-		//nolint
 		if !b || c != ':' {
+			if p.strict {
+				p.fail("missing ':' after key in strict mode")
+				p.resetMarker()
+				return rst
+			}
+			p.log("missing ':' after key; continuing repair")
 		}
 
 		p.index++
 		p.resetMarker()
 		p.setMarker("object_value")
+		if p.strict {
+			p.skipWhitespaces()
+			next, hasNext := p.getByte(0)
+			if !hasNext || next == ',' || next == '}' || next == ']' {
+				p.fail("parsed value is empty in strict mode")
+				p.resetMarker()
+				return rst
+			}
+		}
 		value := p.parseJSON()
 
 		p.resetMarker()
+		if p.strict && value == "" {
+			previous, hasPrevious := p.getByte(-1)
+			if !hasPrevious || !isQuoteByte(previous) {
+				p.fail("parsed value is empty in strict mode")
+				return rst
+			}
+		}
 		if key == "" && value == "" {
 			continue
 		}
@@ -303,8 +402,12 @@ func (p *JSONParser) parseObject() map[string]any {
 	}
 
 	c, b = p.getByte(0)
-	//nolint
 	if b && c != '}' {
+		if p.strict {
+			p.fail("parsed object is missing its closing brace in strict mode")
+		} else {
+			p.log("missing closing object brace; continuing repair")
+		}
 	}
 
 	p.index++
@@ -332,6 +435,10 @@ func (p *JSONParser) parseObject() map[string]any {
 //	receiver p
 //	return []any
 func (p *JSONParser) parseArray() []any {
+	return p.parseArrayUntil(']')
+}
+
+func (p *JSONParser) parseArrayUntil(closing byte) []any {
 
 	rst := make([]any, 0)
 
@@ -342,7 +449,7 @@ func (p *JSONParser) parseArray() []any {
 
 	c, b = p.getByte(0)
 
-	for b && c != ']' {
+	for b && c != closing {
 
 		p.skipWhitespaces()
 
@@ -436,7 +543,14 @@ func (p *JSONParser) parseArray() []any {
 	}
 
 	c, b = p.getByte(0)
-	if b && c != ']' {
+	if !b || c != closing {
+		if p.strict {
+			p.fail("parsed array is missing its closing bracket in strict mode")
+		} else {
+			p.log("missing closing array bracket; continuing repair")
+		}
+	}
+	if b && c != closing {
 		//nolint
 		if c == ',' {
 		}
@@ -507,6 +621,7 @@ func (p *JSONParser) parseString() any {
 				}
 			}
 
+			p.log("found a literal instead of a quote; repairing string")
 			missingQuotes = true
 		}
 
@@ -535,6 +650,10 @@ func (p *JSONParser) parseString() any {
 		c, b = p.getByte(i + 1)
 		if nextB && b && c == rStringDelimiter {
 			doubledQuotes = true
+			if p.strict {
+				p.fail("found doubled quotes followed by another quote in strict mode")
+				return ""
+			}
 			p.index++
 		} else {
 			i = 1
@@ -568,10 +687,19 @@ func (p *JSONParser) parseString() any {
 			break
 		}
 
+		if !p.streamStable && p.getMarker() == "object_value" && c == ',' && p.commaStartsObjectMember() {
+			p.log("found a comma starting the next object member; closing partial string")
+			break
+		}
+		if !p.streamStable && p.getMarker() == "object_value" && c == '}' {
+			p.log("found the object closing brace while repairing a partial string")
+			break
+		}
+
 		if missingQuotes {
 			if p.getMarker() == "object_key" && (c == ':' || unicode.IsSpace(rune(c))) {
 				break
-			} else if p.getMarker() == "object_value" && bytes.IndexByte([]byte{',', '}'}, c) != -1 {
+			} else if !p.streamStable && p.getMarker() == "object_value" && bytes.IndexByte([]byte{',', '}'}, c) != -1 {
 
 				rStringDelimiterMissing := true
 				i := 1
@@ -610,6 +738,12 @@ func (p *JSONParser) parseString() any {
 		if len(rst) > 1 && rst[len(rst)-1] == '\\' {
 
 			rst = rst[:len(rst)-1]
+			if !b {
+				if !p.streamStable {
+					rst = append(rst, '\\')
+				}
+				continue
+			}
 
 			if bytes.IndexByte([]byte{rStringDelimiter, 't', 'n', 'r', 'b', '\\'}, c) != -1 {
 
@@ -866,11 +1000,20 @@ func (p *JSONParser) parseString() any {
 	}
 
 	if !b || c != rStringDelimiter {
+		if p.strict {
+			p.fail("string is missing its closing quote in strict mode")
+		} else {
+			p.log("missed the closing quote; continuing repair")
+		}
 	} else {
 		p.index++
 	}
 
-	return strings.TrimRightFunc(string(rst), unicode.IsSpace)
+	result := string(rst)
+	if !p.streamStable {
+		result = strings.TrimRightFunc(result, unicode.IsSpace)
+	}
+	return result
 }
 
 // isASCIIDigitOrSign returns true for bytes that parseNumber actually accepts:
@@ -955,54 +1098,97 @@ func (p *JSONParser) parseBooleanOrNull() any {
 
 	startingIndex := p.index
 
-	type genericStruct struct {
-		va string
-		vt any
+	literals := []struct {
+		text  string
+		value any
+	}{
+		{text: "true", value: true},
+		{text: "false", value: false},
+		{text: "null", value: nil},
+		{text: "none", value: nil},
 	}
 
-	var gs *genericStruct
-
-	var c byte
-	var b bool
-	c, b = p.getByte(0)
-	c = byte(unicode.ToLower(rune(c)))
-
-	if b {
-		switch {
-		case c == 't':
-			gs = &genericStruct{
-				va: "true",
-				vt: true,
+	for _, literal := range literals {
+		p.index = startingIndex
+		for index := 0; index < len(literal.text); index++ {
+			c, ok := p.getByte(0)
+			if !ok || byte(unicode.ToLower(rune(c))) != literal.text[index] {
+				break
 			}
-		case c == 'f':
-			gs = &genericStruct{
-				va: "false",
-				vt: false,
-			}
-		case c == 'n':
-			gs = &genericStruct{
-				va: "null",
-				vt: nil,
-			}
-		}
-	}
-
-	if gs != nil {
-		i := 0
-		for b && i < len(gs.va) && c == gs.va[i] {
-			i++
 			p.index++
-			c, b = p.getByte(0)
-			c = byte(unicode.ToLower(rune(c)))
-		}
-
-		if i == len(gs.va) {
-			return gs.vt
+			if index == len(literal.text)-1 {
+				next, hasNext := p.getByte(0)
+				if !hasNext || isLiteralBoundary(next) {
+					return literal.value
+				}
+			}
 		}
 	}
 
 	p.index = startingIndex
 	return ""
+}
+
+func isLiteralBoundary(c byte) bool {
+	return unicode.IsSpace(rune(c)) || bytes.IndexByte([]byte{',', ')', ']', '}'}, c) != -1
+}
+
+func (p *JSONParser) commaStartsObjectMember() bool {
+	offset := 1
+	for {
+		c, ok := p.getByte(offset)
+		if !ok || !unicode.IsSpace(rune(c)) {
+			break
+		}
+		offset++
+	}
+	c, ok := p.getByte(offset)
+	if !ok || c == '}' {
+		return true
+	}
+	if c == '`' {
+		offset++
+		for {
+			current, exists := p.getByte(offset)
+			if !exists || !(unicode.IsLetter(rune(current)) || unicode.IsDigit(rune(current)) || current == '_' || current == '-') {
+				break
+			}
+			offset++
+		}
+	} else if c == '"' || c == '\'' {
+		quote := c
+		offset++
+		for {
+			current, exists := p.getByte(offset)
+			if !exists {
+				return false
+			}
+			if current == '\\' {
+				offset += 2
+				continue
+			}
+			if current == quote {
+				offset++
+				break
+			}
+			offset++
+		}
+	} else {
+		for {
+			current, exists := p.getByte(offset)
+			if !exists || !(unicode.IsLetter(rune(current)) || unicode.IsDigit(rune(current)) || current == '_' || current == '-') {
+				break
+			}
+			offset++
+		}
+	}
+	for {
+		current, exists := p.getByte(offset)
+		if !exists || !unicode.IsSpace(rune(current)) {
+			return exists && current == ':'
+		}
+		offset++
+	}
 }
 
 // parseJSONLLMBlock attempts to parse a ```json ... ``` code fence block.

@@ -288,6 +288,18 @@ func Test_RepairJSON(t *testing.T) {
 			want: `{"key":""}`,
 		},
 		{
+			in:   `{"none": None, "prefix": TrueBlue, "valid": True}`,
+			want: `{"none":null,"prefix":"TrueBlue","valid":true}`,
+		},
+		{
+			in:   `(1, 2, True)`,
+			want: `[1,2,true]`,
+		},
+		{
+			in:   `{"value": (1)}`,
+			want: `{"value":1}`,
+		},
+		{
 			in:   "```json{\"array_key\": [{\"item_key\": 1\n}], \"outer_key\": 2}```",
 			want: `{"array_key": [{"item_key": 1}], "outer_key": 2}`,
 		},
