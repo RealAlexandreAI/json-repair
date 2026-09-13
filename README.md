@@ -129,6 +129,41 @@ Or <a href="https://goplay.tools/snippet/zyLfsLcsTwg">Online Playground</a>_
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+## Library API
+
+`RepairJSON` and `MustRepairJSON` keep their existing compact-string behavior.
+Headless callers that need the parsed value or advanced repair behavior can use
+the library options API:
+
+```go
+input := `{"key": }`
+result, err := jsonrepair.RepairWithOptions(input, jsonrepair.RepairOptions{
+    Logging: true,
+})
+
+result.Value // parsed Go value
+result.JSON  // compact repaired JSON
+result.Log   // repair actions when Logging is true
+```
+
+The zero value of `RepairOptions` is the normal repair path. It also supports
+`Strict`, `StreamStable`, `SkipJSONValidation`, `Logging`, and schema-guided
+repair. `RepairValue` is the short form when only the parsed Go value is
+needed. `RepairReader` and `RepairFile` cover headless stream and file input.
+
+Schema-guided repair accepts JSON Schema objects or boolean schemas. The
+standard and salvage modes support object, array, scalar, `required`,
+`default`, `enum`, `const`, `items`, `additionalItems`, `patternProperties`,
+`additionalProperties`, `anyOf`, `oneOf`, `allOf`, local `$ref`, common string
+and numeric constraints, and nested JSON-string containers. Salvage mode can
+drop invalid array items and recover schema-matching top-level fragments.
+
+The Go implementation keeps Unicode output by default. Python-only Pydantic
+models and Python-specific `json.dumps` keyword arguments are not part of the
+Go API. The existing CLI flags and output behavior remain unchanged.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Terminal CLI
 
 ```bash
@@ -240,4 +275,3 @@ Project Link: [https://github.com/RealAlexandreAI/json-repair](https://github.co
 [license-url]: https://github.com/RealAlexandreAI/json-repair/blob/master/LICENSE
 
 [product-screenshot]: images/screenshot.png
-

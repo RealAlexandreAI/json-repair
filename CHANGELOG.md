@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## v0.0.18
+
+### Added
+
+- Add a library options/result API for parsed values, reader/file input, strict
+  repair, repair logs, and stream-stable partial JSON.
+- Add standard and salvage schema-guided repair for headless callers, including
+  scalar coercion, defaults, required properties, nested containers, schema
+  constraints, and local references.
+
+### Fixed
+
+- Recognize Python-style `None` as JSON `null`.
+- Require literal boundaries before converting `True`, `False`, and `Null`, so
+  values such as `TrueBlue` remain strings.
+
 ## v0.0.17
 
 - Fix lint: remove unused `isSmartQuote`, fix ineffectual assignment.
