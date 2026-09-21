@@ -179,12 +179,16 @@ func RepairReader(reader io.Reader, options RepairOptions) (RepairResult, error)
 }
 
 // RepairFile repairs a file without changing it on disk.
-func RepairFile(filename string, options RepairOptions) (RepairResult, error) {
+func RepairFile(filename string, options RepairOptions) (result RepairResult, err error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return RepairResult{}, err
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
 	return RepairReader(file, options)
 }
 
