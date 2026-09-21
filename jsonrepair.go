@@ -1150,7 +1150,7 @@ func (p *JSONParser) commaStartsObjectMember() bool {
 		offset++
 		for {
 			current, exists := p.getByte(offset)
-			if !exists || !(unicode.IsLetter(rune(current)) || unicode.IsDigit(rune(current)) || current == '_' || current == '-') {
+			if !exists || (!unicode.IsLetter(rune(current)) && !unicode.IsDigit(rune(current)) && current != '_' && current != '-') {
 				break
 			}
 			offset++
@@ -1176,7 +1176,7 @@ func (p *JSONParser) commaStartsObjectMember() bool {
 	} else {
 		for {
 			current, exists := p.getByte(offset)
-			if !exists || !(unicode.IsLetter(rune(current)) || unicode.IsDigit(rune(current)) || current == '_' || current == '-') {
+			if !exists || (!unicode.IsLetter(rune(current)) && !unicode.IsDigit(rune(current)) && current != '_' && current != '-') {
 				break
 			}
 			offset++
