@@ -1,277 +1,180 @@
-<!-- Improved compatibility of back to top link: See: https://github.com/RealAlexandreAI/json-repair/pull/73 -->
-<a name="readme-top"></a>
-<!--
-*** Thanks for checking out the Best-README-Template. If you have a suggestion
-*** that would make this better, please fork the repo and create a pull request
-*** or simply open an issue with the tag "enhancement".
-*** Don't forget to give the project a star!
-*** Thanks again! Now go create something AMAZING! :D
--->
+# json-repair
 
+[English](README.md) · [中文](README.zh.md)
 
+Repair malformed JSON from LLM output into compact, valid JSON.
 
-<!-- PROJECT SHIELDS -->
-<!--
-*** I'm using markdown "reference style" links for readability.
-*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
-*** See the bottom of this document for the declaration of the reference variables
-*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
-*** https://www.markdownguide.org/basic-syntax/#reference-style-links
--->
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![GPL License][license-shield]][license-url]
+[![CI](https://github.com/RealAlexandreAI/json-repair/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealAlexandreAI/json-repair/actions/workflows/ci.yaml)
+[![License: GPL-3.0](https://img.shields.io/github/license/RealAlexandreAI/json-repair)](https://github.com/RealAlexandreAI/json-repair/blob/main/LICENSE)
+[![Go](https://img.shields.io/github/go-mod/go-version/RealAlexandreAI/json-repair)](go.mod)
+[![Release](https://img.shields.io/github/v/release/RealAlexandreAI/json-repair)](https://github.com/RealAlexandreAI/json-repair/releases)
 
+<img src="images/logo.png" alt="json-repair logo" width="80" height="80">
 
-<!-- PROJECT LOGO -->
-<br />
-<div align="center">
-  <a href="https://github.com/RealAlexandreAI/json-repair">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
-  </a>
+A Go library and a small CLI. The module is `github.com/RealAlexandreAI/json-repair`, Go 1.21, with no third-party dependencies. It is a Go port of [json_repair](https://github.com/mangiucugna/json_repair). Latest tagged release: [v0.0.18](https://github.com/RealAlexandreAI/json-repair/releases/tag/v0.0.18).
 
-<h3 align="center">json-repair</h3>
+`RepairJSON` and `MustRepairJSON` always return a compact JSON string. `RepairWithOptions` is the entry point when you need the parsed value, a repair log, strict mode, stream-stable partial strings, or schema-guided repair.
 
-  <p align="center">
-    JSON Repair: Solution for JSON Anomalies from LLMs.
-    <br />
-    <a href="https://goplay.tools/snippet/zyLfsLcsTwg">Online Playground</a>
-    ·
-    <a href="https://github.com/RealAlexandreAI/json-repair/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
-    ·
-    <a href="https://github.com/RealAlexandreAI/json-repair/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
-  </p>
-</div>
+## How a call runs
 
+```mermaid
+flowchart LR
+  in[LLM text] --> norm[normalize]
+  norm --> valid{valid JSON?}
+  valid -->|yes| compact[compact]
+  valid -->|no| parse[repair parser]
+  compact --> schema{schema set?}
+  parse --> schema
+  schema -->|no| out[compact JSON]
+  schema -->|yes| guide[standard or salvage]
+  guide --> out
+```
 
-<!-- ABOUT THE PROJECT -->
+`normalize` strips ` ```json ` fences, `//`, `/* */`, and `#` comments, and maps full-width brackets, colons, commas, and semicolons to ASCII. Quote variants are recognized by the parser, not rewritten in a blanket pass. Already-valid JSON is compacted and returned; the parser runs only when the input is not valid JSON, or when `SkipJSONValidation` is set.
 
-## 🔧 Repair JSON! Solution for JSON Anomalies from LLMs
+## Install
 
-Welcome to the json-repair, your go-to solution for fixing those pesky JSON anomalies that can sidetrack your Large
-Language Model (LLM) processes. Our toolkit is designed to be the Swiss Army knife for all your JSON repair needs.
-
-### 🎯 Why Choose JSON Repair?
-
-- 🏎️ GO Compatibility: Our library ensures a seamless experience for Go developers with its excellent compatibility.
-- 🔗 Zero Dependencies: We've crafted a tool with zero external dependencies, keeping it lean and mean.
-- 📚 Rich Test Cases: Benefit from a comprehensive suite of test cases that ensure reliability and accuracy.
-- 🤖 Auto-Detection & Repair: Intelligently identifies and corrects a wide range of JSON errors, from syntax to
-  structural issues.
-- 📐 Terminal CLI Support: The feature can also be used in the command-line and can be chained with command pipes.
-- ⚙️ No Anxiety About Error: json-repair always gives the string result.
-- 🌐 Open Source: Join a vibrant community of developers contributing to the ongoing evolution of the toolkit.
-
-### 🔍 Supported Broken LLM JSON Output
-
-- Single quote `"`
-- Line feed `\n`
-- Improperly formatted JSON string `{"key": TRUE, "key2": FALSE, "key3": Null  `
-- String with mixed quotes `{'key': 'string', 'key2': false, \"key3\": null, \"key4\": unquoted}`
-- Unclosed array `[1, 2, 3, 4`
-- Unclosed array object `{"employees":["John", "Anna",`
-- Standalone left bracket `[`
-- Standalone right bracket `]`
-- Array with extra line breaks `[[1\n\n]`
-- Incorrect key-value pair `{foo: [}`
-- Correct JSON string `{"text": "The quick brown fox won\'t jump"}`
-- Incorrect key-value pair `{"value_1": "value_2": "data"}`
-- JSON string with comment `{"value_1": true, COMMENT "value_2": "data"}`
-- JSON string with leading spaces  `- { "test_key": ["test_value", "test_value2"] }`
-- String containing a link `{ "content": "[LINK]("https://google.com")" }`
-- Unclosed link string `{ "content": "[LINK](" }`
-- Unclosed link and extra key string `{ "content": "[LINK](", "key": true }`
-- Incorrect key-value pair `{"key":"",}`
-- etc.
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
-<!-- GETTING STARTED -->
-
-## 🏁 Getting Started
-
-To add the JSON Repair to your Go project, use the following command:
+Library:
 
 ```shell
 go get github.com/RealAlexandreAI/json-repair
 ```
 
-<!-- USAGE EXAMPLES -->
+CLI, from the [Homebrew tap](https://github.com/RealAlexandreAI/homebrew-tap-jsonrepair):
 
-## Usage
+```shell
+brew install realalexandreai/tap-jsonrepair/jsonrepair
+```
+
+Or download a release archive from [Releases](https://github.com/RealAlexandreAI/json-repair/releases). GoReleaser builds `jsonrepair` for linux, darwin, and windows (`CGO_ENABLED=0`). The binary name is `jsonrepair`.
+
+## Library
 
 ```go
 package main
 
-import (
-    "github.com/RealAlexandreAI/json-repair"
-)
+import "github.com/RealAlexandreAI/json-repair"
 
 func main() {
-    // broken JSON string from LLM
     in := "```json {'employees':['John', 'Anna', ```"
 
-    jsonrepair.RepairJSON(in)
+    out, err := jsonrepair.RepairJSON(in)
+    // out: {"employees":["John","Anna"]}
+    _ = out
+    _ = err
 
-    // output:	{"employees":["John","Anna"]}
+    // MustRepairJSON returns "" when repair fails.
+    _ = jsonrepair.MustRepairJSON(in)
 }
 ```
 
-> Additionally, there is `MustRepairJSON` for scenarios that are not suitable for error handling, such as pipes and
-> trusted environments
+More cases are in [`jsonrepair_test.go`](jsonrepair_test.go). Object key order in the output follows Go's `encoding/json` map encoding, so it is not stable across keys.
 
-_For more examples, please refer to
-the [Test Cases](https://github.com/RealAlexandreAI/json-repair/blob/master/main_test.go)
-Or <a href="https://goplay.tools/snippet/zyLfsLcsTwg">Online Playground</a>_
+### Functions
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+| Function | Signature | Returns |
+| --- | --- | --- |
+| `RepairJSON` | `(src string) (string, error)` | Compact repaired JSON. |
+| `MustRepairJSON` | `(src string) string` | Same JSON, or `""` on error. Used by the CLI. |
+| `RepairValue` | `(src string) (any, error)` | Parsed Go value only. |
+| `RepairWithOptions` | `(src string, options RepairOptions) (RepairResult, error)` | `Value`, compact `JSON`, and `Log`. |
+| `RepairReader` | `(reader io.Reader, options RepairOptions) (RepairResult, error)` | Reads the whole reader, then repairs. |
+| `RepairFile` | `(filename string, options RepairOptions) (RepairResult, error)` | Reads the file. Does not write it back. |
+| `RepairJSONWithSchema` | `(src string, schema map[string]any) (string, error)` | Schema repair in standard mode. |
+| `NewJSONParser` | `(in string) *JSONParser` | Parser with default options. |
 
-## Library API
+`RepairResult` fields: `Value any`, `JSON string`, `Log []RepairLogEntry`. Each log entry has `Text` and `Context`. `Log` is nil unless `Logging` is true; for valid JSON it is an empty non-nil slice.
 
-`RepairJSON` and `MustRepairJSON` keep their existing compact-string behavior.
-Headless callers that need the parsed value or advanced repair behavior can use
-the library options API:
+A panic inside repair is recovered and returned as `repair json panic: ...`. `Schema` and `Strict` together return an error. `SchemaRepairMode` `"salvage"` without a schema returns an error.
+
+### RepairOptions
+
+The zero value is the normal repair path.
+
+| Field | Type | Effect |
+| --- | --- | --- |
+| `SkipJSONValidation` | `bool` | Skip the valid-JSON fast path and always run the parser. |
+| `Logging` | `bool` | Fill `RepairResult.Log`. |
+| `StreamStable` | `bool` | Keep an unfinished string closed, instead of letting the default parser reinterpret the tail. |
+| `Strict` | `bool` | Reject duplicate keys, a missing `:`, an empty key or value, and more than one top-level value. |
+| `Schema` | `any` | JSON Schema object (`map[string]any`) or a boolean schema. |
+| `SchemaRepairMode` | `SchemaRepairMode` | `""` and `"standard"` are standard. `"salvage"` drops invalid array items and can recover a schema-matching top-level fragment. |
 
 ```go
-input := `{"key": }`
-result, err := jsonrepair.RepairWithOptions(input, jsonrepair.RepairOptions{
+result, err := jsonrepair.RepairWithOptions(`{"key": }`, jsonrepair.RepairOptions{
     Logging: true,
 })
-
-result.Value // parsed Go value
-result.JSON  // compact repaired JSON
-result.Log   // repair actions when Logging is true
+// result.Value  parsed Go value
+// result.JSON   compact JSON
+// result.Log    repair actions
 ```
 
-The zero value of `RepairOptions` is the normal repair path. It also supports
-`Strict`, `StreamStable`, `SkipJSONValidation`, `Logging`, and schema-guided
-repair. `RepairValue` is the short form when only the parsed Go value is
-needed. `RepairReader` and `RepairFile` cover headless stream and file input.
+Schema-guided repair accepts object, array, and scalar schemas, plus `required`, `default`, `enum`, `const`, `items`, `additionalItems`, `patternProperties`, `additionalProperties`, `anyOf`, `oneOf`, `allOf`, and local `$ref` (`#/...` only). A string whose schema type is object or array is parsed again as nested JSON. Salvage mode can drop an array item that fails the item schema; standard mode returns that error.
 
-Schema-guided repair accepts JSON Schema objects or boolean schemas. The
-standard and salvage modes support object, array, scalar, `required`,
-`default`, `enum`, `const`, `items`, `additionalItems`, `patternProperties`,
-`additionalProperties`, `anyOf`, `oneOf`, `allOf`, local `$ref`, common string
-and numeric constraints, and nested JSON-string containers. Salvage mode can
-drop invalid array items and recover schema-matching top-level fragments.
+```go
+schema := map[string]any{
+    "type": "array",
+    "items": map[string]any{"type": "integer"},
+}
+out, err := jsonrepair.RepairWithOptions(`[1,"bad",2]`, jsonrepair.RepairOptions{
+    Schema:           schema,
+    SchemaRepairMode: jsonrepair.SchemaRepairSalvage,
+})
+// out.JSON: [1,2]
+_, _ = out, err
+```
 
-The Go implementation keeps Unicode output by default. Python-only Pydantic
-models and Python-specific `json.dumps` keyword arguments are not part of the
-Go API. The existing CLI flags and output behavior remain unchanged.
+Python Pydantic models and Python `json.dumps` keyword arguments are not part of this API. Unicode in string values is preserved.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+## What it repairs
 
-## Terminal CLI
+Outputs below are the compact JSON from `RepairJSON` on the current tests. Where the parser rebuilds an object, key order can differ from the input; the table shows the logical repair.
 
-```bash
+| Input | Output |
+| --- | --- |
+| `{'key': 'string', 'key2': false, "key3": null, "key4": unquoted}` | `{"key":"string","key2":false,"key3":null,"key4":"unquoted"}` |
+| `{"key": TRUE, "key2": FALSE, "key3": Null` | `{"key":true,"key2":false,"key3":null}` |
+| `{"none": None, "prefix": TrueBlue, "valid": True}` | `None` becomes `null`, `True` becomes `true`, `TrueBlue` stays a string |
+| `[1, 2, 3, 4` | `[1,2,3,4]` |
+| `{"employees":["John", "Anna",` | `{"employees":["John","Anna"]}` |
+| `[` | `[]` |
+| `]` | `""` |
+| `[[1` plus a blank line plus `]` | `[[1]]` |
+| `{foo: [}` | `{"foo":[]}` |
+| `{"value_1": true, COMMENT "value_2": "data"}` | `{"value_1":true,"value_2":"data"}` |
+| ` - { "test_key": ["test_value", "test_value2"] }` | object with that array |
+| `{ "content": "[LINK]("https://google.com")" }` | link text kept, inner quotes escaped |
+| `{"key":"",}` | `{"key":""}` |
+| `` ```json { ... } ``` `` | fence removed, object repaired |
+| `(1, 2, True)` | `[1,2,true]` |
+| `{"key":"value"}[1,2,3,true]` | `[{...},[1,2,3,true]]` |
+| `{“key”: “value”}` and `｛＂key＂：＂value＂｝` | `{"key":"value"}` |
 
-brew install realalexandreai/tap-jsonrepair/jsonrepair
+Also covered: unclosed strings, missing commas, leading or trailing non-JSON text, hash and block comments, duplicate keys, and a code fence wrapped around the JSON. Comma-separated duplicate keys in otherwise valid JSON are left in the compact string; `RepairResult.Value` keeps the later value. The parser itself, used when the input is not valid JSON or `SkipJSONValidation` is set, overwrites a comma-separated duplicate and emits one key. A duplicate key with no comma between it and the previous value is not split into a second object: `{"a":1 "a":2}` becomes `[{"a":1},"a",2]`.
 
-# from raw string
+## CLI
+
+```text
+Usage: jsonrepair <options>
+Options:
+	-f 	 File path (Default )
+	-h 	 Print help (Default false)
+	-i 	 String input inline (Default )
+	-v 	 Print version details (Default false)
+```
+
+```shell
 jsonrepair -i "{'employees':['John', 'Anna', "
-# output: {"employees":["John", "Anna", "Peter"]}
+# {"employees":["John","Anna"]}
 
-# from file
-jsonrepair -f <json-file>.json
+jsonrepair -f input.json
+jsonrepair -v
 ```
 
-_You can also download binary from Release, please refer to
-the [Releases](https://github.com/RealAlexandreAI/json-repair/releases)._
-
-
-<!-- ROADMAP -->
-
-## Roadmap
-
-- [x] Convert project from Python
-- [x] Minimum Go version
-- [x] Cover test cases
-- [x] Terminal CLI support
-- [x] Workflow and GitHub Action
-- [x] Add Homebrew tap
-- [x] Support Full-width character detection
-- [x] Smart/curly quote support
-- [x] Multiple top-level JSON values
-- [x] Duplicate key deduplication
-
-See the [open issues](https://github.com/RealAlexandreAI/json-repair/issues) for a full list of proposed features (and
-known issues).
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
-
-<!-- CONTRIBUTING -->
-
-## Contributing
-
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any
-contributions you make are **greatly appreciated**.
-
-If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also
-simply open an issue with the tag "enhancement".
-Don't forget to give the project a star! Thanks again!
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Related Project
-
-- [python json_repair](https://github.com/mangiucugna/json_repair) - Inspiration of json-repair.
-
-<!-- LICENSE -->
+`-i` wins over `-f` when both are set and `-i` is non-empty. A missing file prints `[json-repair] invalid file path: ...` and does not exit non-zero. With no `-i` and no `-f`, the command prints nothing. `-v` prints `Version: ` plus the ldflags value, or `Version: dev` when unset. There is no stdin pipe mode.
 
 ## License
 
-Distributed under the GPLv3 License. See `LICENSE` for more information.
+[GNU General Public License v3.0](LICENSE).
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
-
-<!-- CONTACT -->
-
-## Contact
-
-RealAlexandreAI - [@RealAlexandreAI](https://twitter.com/RealAlexandreAI)
-
-Project Link: [https://github.com/RealAlexandreAI/json-repair](https://github.com/RealAlexandreAI/json-repair)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Sponsor
-
-
-
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-
-[contributors-shield]: https://img.shields.io/github/contributors/RealAlexandreAI/json-repair.svg?style=for-the-badge
-
-[contributors-url]: https://github.com/RealAlexandreAI/json-repair/graphs/contributors
-
-[forks-shield]: https://img.shields.io/github/forks/RealAlexandreAI/json-repair.svg?style=for-the-badge
-
-[forks-url]: https://github.com/RealAlexandreAI/json-repair/network/members
-
-[stars-shield]: https://img.shields.io/github/stars/RealAlexandreAI/json-repair.svg?style=for-the-badge
-
-[stars-url]: https://github.com/RealAlexandreAI/json-repair/stargazers
-
-[issues-shield]: https://img.shields.io/github/issues/RealAlexandreAI/json-repair.svg?style=for-the-badge
-
-[issues-url]: https://github.com/RealAlexandreAI/json-repair/issues
-
-[license-shield]: https://img.shields.io/github/license/RealAlexandreAI/json-repair.svg?style=for-the-badge
-
-[license-url]: https://github.com/RealAlexandreAI/json-repair/blob/master/LICENSE
-
-[product-screenshot]: images/screenshot.png
+Upstream Python project: [mangiucugna/json_repair](https://github.com/mangiucugna/json_repair).
