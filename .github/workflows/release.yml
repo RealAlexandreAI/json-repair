@@ -36,6 +36,7 @@ jobs:
         with:
           version: v2.15.0
       - name: Run GoReleaser
+        if: github.event_name == 'push'
         uses: goreleaser/goreleaser-action@v7.3.0
         with:
           # either 'goreleaser' (default) or 'goreleaser-pro'
@@ -43,5 +44,14 @@ jobs:
           # 'latest', 'nightly', or a semver
           version: "v2.18.3"
           args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check release
+        if: github.event_name == 'workflow_dispatch'
+        uses: goreleaser/goreleaser-action@v7.3.0
+        with:
+          distribution: goreleaser
+          version: "v2.18.3"
+          args: release --clean --snapshot --skip=publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
