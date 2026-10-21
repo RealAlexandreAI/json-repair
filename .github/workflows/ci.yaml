@@ -68,7 +68,7 @@ jobs:
             --jq '.assets[] | select(.digest) | "\(.name) \(.digest | sub("sha256:"; ""))"' \
             > /tmp/assets.txt
           failed=0
-          while read -r asset want; do
+          while read -r asset want || [ -n "$asset" ]; do
             line=$(grep -nF "/$asset\"" "$formula" | cut -d: -f1 | head -1)
             [ -n "$line" ] || continue
             start=$((line - 4)); [ "$start" -gt 0 ] || start=1
