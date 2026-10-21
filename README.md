@@ -40,10 +40,10 @@ Library:
 go get github.com/RealAlexandreAI/json-repair
 ```
 
-CLI, from the [Homebrew tap](https://github.com/RealAlexandreAI/homebrew-tap-jsonrepair):
+CLI, from this repository's Homebrew formula:
 
 ```shell
-brew install realalexandreai/tap-jsonrepair/jsonrepair
+brew install RealAlexandreAI/json-repair/jsonrepair
 ```
 
 Or download a release archive from [Releases](https://github.com/RealAlexandreAI/json-repair/releases). GoReleaser builds `jsonrepair` for linux, darwin, and windows (`CGO_ENABLED=0`). The binary name is `jsonrepair`.

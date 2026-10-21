@@ -10,6 +10,7 @@ on:
   pull_request:
     types: [ opened, synchronize, reopened ]
     paths-ignore: *docs
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -38,3 +39,47 @@ jobs:
       - name: Run tests with race detector
         run: |
           go test -count=1 -race ./...
+  formula:
+    name: Formula
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Check GoReleaser configuration
+        run: docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/goreleaser/goreleaser:v2.18.3 check
+      - name: Check Formula syntax
+        run: ruby -c Formula/*.rb
+      - name: Check the Formula matches the latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          formula=Formula/jsonrepair.rb
+          declared=$(sed -n 's/^  version "\(.*\)"$/\1/p' "$formula")
+          released=$(gh api repos/RealAlexandreAI/json-repair/releases/latest --jq .tag_name | sed 's/^v//')
+          if [ "$declared" != "$released" ]; then
+            echo "::error::$formula declares $declared but the latest release is $released" >&2
+            exit 1
+          fi
+          gh api repos/RealAlexandreAI/json-repair/releases/latest \
+            --jq '.assets[] | select(.digest) | "\(.name) \(.digest | sub("sha256:"; ""))"' \
+            > /tmp/assets.txt
+          failed=0
+          while read -r asset want; do
+            line=$(grep -nF "/$asset\"" "$formula" | cut -d: -f1 | head -1)
+            [ -n "$line" ] || continue
+            start=$((line - 4)); [ "$start" -gt 0 ] || start=1
+            end=$((line + 4))
+            got=$(sed -n "${start},${end}p" "$formula" | sed -n 's/^[[:space:]]*sha256 "\(.*\)"$/\1/p' | head -1)
+            if [ -z "$got" ]; then
+              echo "::error::$asset has no checksum next to its URL" >&2
+              failed=1
+            elif [ "$got" != "$want" ]; then
+              echo "::error::$asset checksum mismatch: formula $got, release $want" >&2
+              failed=1
+            fi
+          done < /tmp/assets.txt
+          exit $failed

@@ -40,10 +40,10 @@ flowchart LR
 go get github.com/RealAlexandreAI/json-repair
 ```
 
-CLI，来自 [Homebrew tap](https://github.com/RealAlexandreAI/homebrew-tap-jsonrepair)：
+CLI，来自本仓库的 Homebrew formula：
 
 ```shell
-brew install realalexandreai/tap-jsonrepair/jsonrepair
+brew install RealAlexandreAI/json-repair/jsonrepair
 ```
 
 也可以从 [Releases](https://github.com/RealAlexandreAI/json-repair/releases) 下载发布包。GoReleaser 为 linux、darwin、windows 构建 `jsonrepair`（`CGO_ENABLED=0`）。二进制名是 `jsonrepair`。

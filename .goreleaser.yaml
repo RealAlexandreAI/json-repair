@@ -23,7 +23,7 @@ builds:
       - -X main.version={{.Version}}
     main: ./cli
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
       {{ .ProjectName }}_
@@ -35,7 +35,7 @@ archives:
     # use zip for windows archives
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 checksum:
   name_template: 'checksums.txt'
 changelog:
@@ -52,24 +52,18 @@ release:
     name: json-repair
   draft: false
 
-brews:
+homebrew_casks:
   - name: jsonrepair
+    commit_msg_template: "chore: update jsonrepair to {{ .Tag }} [skip ci]"
     repository:
       owner: RealAlexandreAI
-      name: homebrew-tap-jsonrepair
+      name: json-repair
       branch: main
-      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    url_template: "https://github.com/RealAlexandreAI/json-repair/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-    download_strategy: CurlDownloadStrategy
-    # Git author used to commit to the repository.
-    # Defaults are shown.
-    commit_author:
-      name: goreleaserbot
-      email: bot@goreleaser.com
+    url:
+      template: "https://github.com/RealAlexandreAI/json-repair/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     directory: Formula
     homepage: "https://github.com/RealAlexandreAI/json-repair"
-    description: "🔧 Repair JSON! Solution for JSON Anomalies from LLMs"
+    description: "Repair malformed JSON, including output from language models"
     license: "GPL-3.0"
-    skip_upload: false
-    test: |
-      system "#{bin}/jsonrepair -v"
+    binaries:
+      - jsonrepair
