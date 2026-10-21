@@ -8,6 +8,12 @@ on:
       - "*"
   workflow_dispatch:
 
+# A tag push and a dispatch can overlap; goreleaser must not run twice on
+# the same repo at once.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   packages: write
