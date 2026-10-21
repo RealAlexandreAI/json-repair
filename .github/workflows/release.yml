@@ -25,15 +25,22 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      # More assembly might be required: Docker logins, GPG, etc.
-      # It all depends on your needs.
+          cache: true
+      # A tag can point at any commit, so the release builds whatever was
+      # pushed. Gate it on the same checks CI runs before it publishes.
+      - name: Test
+        run: go test ./...
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: v2.15.0
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7.3.0
         with:
           # either 'goreleaser' (default) or 'goreleaser-pro'
           distribution: goreleaser
           # 'latest', 'nightly', or a semver
-          version: "~> v2"
+          version: "v2.18.3"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
