@@ -7,7 +7,7 @@ on:
       - '**.md'
       - 'images/**'
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    types: [opened, synchronize, reopened]
     paths-ignore: *docs
 
 permissions:
@@ -20,9 +20,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wake Instabox
+        env:
+          INSTABOX_API_KEY: ${{ secrets.INSTABOX_API_KEY }}
+          INSTABOX_MACHINE_ID: ${{ secrets.INSTABOX_MACHINE_ID }}
+        run: chmod +x scripts/instabox-wake.sh && ./scripts/instabox-wake.sh
   golangci:
     name: lint
-    runs-on: ubuntu-latest
+    needs: wake
+    runs-on: [self-hosted, instabox, instabox-usa]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
