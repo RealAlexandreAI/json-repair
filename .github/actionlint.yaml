@@ -1,0 +1,19 @@
+# Custom runner labels used across this fleet (Blacksmith / Instabox / box).
+self-hosted-runner:
+  labels:
+    - blacksmith-2vcpu-ubuntu-2404
+    - blacksmith-4vcpu-ubuntu-2404
+    - blacksmith-8vcpu-ubuntu-2404
+    - instabox
+    - instabox-sky
+    - instabox-usa
+    - instabox-holy
+    - grok-bot
+    - license-ci
+    - Linux
+    - X64
+    - linux
+    - x64
+    - shannon
+    - macOS
+    - ARM64
