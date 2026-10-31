@@ -5,10 +5,12 @@ on:
     paths:
       - ".github/workflows/**"
       - ".github/actions/**"
+      - ".github/actionlint.yaml"
   pull_request:
     paths:
       - ".github/workflows/**"
       - ".github/actions/**"
+      - ".github/actionlint.yaml"
   workflow_dispatch:
 
 permissions:
