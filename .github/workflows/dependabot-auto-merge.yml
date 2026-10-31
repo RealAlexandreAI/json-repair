@@ -12,17 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
     steps:
-      - name: Dependabot metadata
-        id: meta
-        uses: dependabot/fetch-metadata@v3
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Auto-merge patch, minor, and security
-        if: >-
-          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
-          steps.meta.outputs.update-type == 'version-update:semver-minor' ||
-          steps.meta.outputs.alert-state == 'open' ||
-          steps.meta.outputs.alert-state == 'fixed'
+      - name: Auto-merge Dependabot PR
         run: gh pr merge --squash --delete-branch "$PR_URL"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
